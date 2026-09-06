@@ -1,0 +1,16 @@
+{
+  "name": "novel-forge",
+  "version": "0.3.0",
+  "private": false,
+  "description": "织文 NovelForge —— 可自定义的 AI 小说创作工坊：点子 → 设定 → 人物 → 大纲 → 章节正文，全流程可人工编辑；支持 OpenAI 兼容 / Gemini / Grok 等多家接口；内置离线模拟引擎与示例项目。",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "check": "node scripts/check-syntax.js",
+    "release": "node scripts/build-release.mjs"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "license": "MIT"
+}
