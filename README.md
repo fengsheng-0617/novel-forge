@@ -1,5 +1,7 @@
 # 织文 NovelForge —— 全能 AI 创作工具
 
+> **🌐 语言 / Languages**
+> 简体中文 | [English](README.en.md) · [Français](README.fr.md) · [Русский](README.ru.md) · [Español](README.es.md) · [Português](README.pt.md)
 > 更新记录见 [CHANGELOG](CHANGELOG.md)。
 
 大型、可完全自定义的本地 AI 创作工具，把 **小说创作** 与 **内容仿写/续写/改写、安理会决议仿写、学术套磁邮件** 统一在能力框架下，并支持**多语言写作**。小说流水线：**灵感点子 → 世界观设定 → 人物群像 → 卷章大纲 → 章节正文**，每一步 AI 产出都可**预览后入库、自由编辑、重新生成、单点精修、整体回退（撤销）**；支持接入 OpenAI 兼容接口（含国产各家）、Gemini、Grok/xAI；内置**离线模拟引擎**与示例小说，**无需任何 API Key 即可完整体验全部功能**。
