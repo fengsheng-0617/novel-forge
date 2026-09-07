@@ -271,6 +271,53 @@ function bibleKeyText(p, row) {
   return out.length ? out.join('\n\n') : '（世界观设定中无与本章直接相关条目；如需新设定，请遵守其铁律并保持克制）';
 }
 
+// ---------------- 多语言指令 ----------------
+const LANG_TEXT = {
+  zh: '【语言要求】用简体中文写作。',
+  en: '【Language】Write in English.',
+  fr: '【Langue】Écrivez en français.',
+  ru: '【Язык】Пишите на русском.',
+  es: '【Idioma】Escriba en español.',
+  pt: '【Idioma】Escreva em português.',
+};
+function langInstruction(lang) {
+  const k = String(lang || '').trim();
+  if (!k) return '';
+  if (/^(zh|cn|chinese)/i.test(k)) return '\n【语言要求】用简体中文写作。';
+  if (/^(en|english)/i.test(k)) return '\n【Language】Write in English.';
+  return '\n' + (LANG_TEXT[k] || `【语言要求】请用 ${k} 写作。`);
+}
+
+// ---------------- 能力工作台（非 novel 通用文本能力） ----------------
+
+/** 把任意项目的「模板变量块」串起来，供能力动作注入模板。 */
+function fmtWorkspaceVars(project) {
+  const ws = project.workspace || {};
+  const src = (ws.source && ws.source[0]) || {};
+  return {
+    capKind: ws.kind || 'text',
+    capTitle: String(src.title || project.name || '（未命名）'),
+    sourceText: String(src.text || ''),
+    sourceLang: String(src.lang || project.language || ''),
+    paramsText: fmtParams(ws.params),
+    outputsText: fmtOutputs(ws.outputs),
+    projLang: String(project.language || ''),
+  };
+}
+
+function fmtParams(params) {
+  const o = params || {};
+  const keys = Object.keys(o);
+  if (!keys.length) return '（无）';
+  return keys.map((k) => `${k}：${String(o[k])}`).join('\n');
+}
+
+function fmtOutputs(outputs) {
+  const list = outputs || [];
+  if (!list.length) return '（尚无输出）';
+  return list.slice(-4).map((x) => `【${x.label || x.action}】\n${String(x.content || '').slice(0, 900)}`).join('\n\n---\n\n');
+}
+
 // ---------------- 模板渲染 ----------------
 
 function renderTemplate(tpl, vars) {
@@ -288,4 +335,4 @@ function renderTemplate(tpl, vars) {
   return { system: s, user: u };
 }
 
-module.exports = { buildVars, trimVars, renderTemplate, fmtIdea, fmtStyle, fmtBible, fmtChars, fmtRow, fmtRows, fmtContinuity, prevTextFor, openThreads, bibleKeyText };
+module.exports = { buildVars, trimVars, renderTemplate, fmtIdea, fmtStyle, fmtBible, fmtChars, fmtRow, fmtRows, fmtContinuity, prevTextFor, openThreads, bibleKeyText, fmtWorkspaceVars, langInstruction };

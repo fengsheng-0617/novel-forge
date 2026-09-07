@@ -3,6 +3,7 @@
 import { h, clear, toast, debounce, confirmDialog, numFmt } from '../ui.js';
 import { api } from '../api.js';
 import { openGen } from '../components/genPanel.js';
+import { t } from '../i18n.js';
 
 let selRowId = null;
 
@@ -51,7 +52,7 @@ export function mount(root, project, ctx) {
       const r = await api.colOp(p.id, 'rows', 'update', { id: row.id, patch });
       p.rows = r.arr;
       if (ctx.onSelfChange) ctx.onSelfChange();
-    } catch (e) { toast('正文保存失败：' + e.message, 'err', 5000); draftBuf = buf; }
+    } catch (e) { toast(t('writing.saveFail', { msg: e.message }), 'err', 5000); draftBuf = buf; }
   }
   function updateWordCounter() {
     const el = root.querySelector('#writing-wc');
@@ -76,42 +77,42 @@ export function mount(root, project, ctx) {
     header(),
     rows.length ? h('div', { class: 'split', style: 'grid-template-columns:280px 1fr' },
       chapterNav(),
-      sel ? editorPane(sel) : h('div', { class: 'empty' }, '暂无章节')) : emptyState());
+      sel ? editorPane(sel) : h('div', { class: 'empty' }, t('writing.first'))) : emptyState());
 
   function header() {
     return h('div', {},
       h('div', { class: 'page-title' },
-        h('h1', {}, '⑤ 章节写作'),
-        h('span', { class: 'sub' }, `已写 ${written.length}/${rows.length} 章 · ${numFmt(written.reduce((a, r) => a + (r.ch && r.ch.words || 0), 0))} 字`)),
+        h('h1', {}, t('writing.title')),
+        h('span', { class: 'sub' }, t('writing.sub', { w: written.length, t: rows.length, c: numFmt(written.reduce((a, r) => a + (r.ch && r.ch.words || 0), 0)) }))),
       h('div', { class: 'actions-bar' },
         rows.length && rows.some((r) => !r.ch || !r.ch.content)
           ? h('button', { class: 'btn', onclick: () => {
-            confirmDialog('无人值守连载', `将按大纲顺序自动撰写剩余 ${rows.filter((r) => !r.ch || !r.ch.content).length} 章（每章后自动生成摘要并归档伏笔/事实记忆），可随时暂停/停止。`, { okText: '启动连载' }).then(async (yes) => {
+            confirmDialog(t('writing.pipeTitle'), t('writing.pipeMsg', { n: rows.filter((r) => !r.ch || !r.ch.content).length }), { okText: t('writing.pipeOk') }).then(async (yes) => {
               if (!yes) return;
-              try { await api.pipelineStart({ projectId: p.id, mode: 'write' }); toast('连载已启动（顶栏芯片可暂停/停止）', 'ok'); }
-              catch (e) { toast('启动失败：' + e.message, 'err', 5000); }
+              try { await api.pipelineStart({ projectId: p.id, mode: 'write' }); toast(t('writing.pipeStarted'), 'ok'); }
+              catch (e) { toast(t('writing.pipeFail', { msg: e.message }), 'err', 5000); }
             });
-          } }, '⚡ 大纲→无人值守连载（剩余全部）')
+          } }, t('writing.pipeStart'))
           : null,
-        h('button', { class: 'btn ghost', onclick: () => { location.hash = '#/p/' + p.id + '/outline'; } }, '← 回大纲'),
-        h('button', { class: 'btn ghost', onclick: () => { location.hash = '#/p/' + p.id + '/audit'; } }, '审校 →')));
+        h('button', { class: 'btn ghost', onclick: () => { location.hash = '#/p/' + p.id + '/outline'; } }, t('writing.backOutline')),
+        h('button', { class: 'btn ghost', onclick: () => { location.hash = '#/p/' + p.id + '/audit'; } }, t('writing.toAudit'))));
   }
 
   function emptyState() {
     return h('div', { class: 'empty' },
-      h('div', {}, '还没有任何章节行 —— 先去「卷章大纲」生成或添加章节。'),
+      h('div', {}, t('writing.empty')),
       h('div', { class: 'btn-row', style: 'justify-content:center;margin-top:12px' },
-        h('button', { class: 'btn primary', onclick: () => { location.hash = '#/p/' + p.id + '/outline'; } }, '前往 大纲页')));
+        h('button', { class: 'btn primary', onclick: () => { location.hash = '#/p/' + p.id + '/outline'; } }, t('writing.goOutline'))));
   }
 
   function chapterNav() {
     const box = h('div', { class: 'list-pane' });
     const head = h('div', { class: 'lp-head' },
-      h('span', { class: 'small muted', style: 'font-weight:600' }, '章节'));
+      h('span', { class: 'small muted', style: 'font-weight:600' }, t('writing.nav')));
     box.append(head);
     const listEl = h('div', {});
     box.append(listEl);
-    const filter = h('input', { type: 'text', placeholder: '筛选章节', style: 'margin:8px;width:calc(100% - 16px)', oninput: (e) => paint(e.target.value) });
+    const filter = h('input', { type: 'text', placeholder: t('writing.filterPh'), style: 'margin:8px;width:calc(100% - 16px)', oninput: (e) => paint(e.target.value) });
     head.append(filter);
     const paint = (kw = '') => {
       clear(listEl);
@@ -125,12 +126,12 @@ export function mount(root, project, ctx) {
           remount();
         } },
           h('span', { class: 'small faint' }, `第${r.no}章`),
-          h('span', { class: 'nm', style: 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }, r.title || '（未命名）'),
+          h('span', { class: 'nm', style: 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }, r.title || t('writing.noname')),
           h('span', { style: 'margin-left:auto;font-size:11px;color:' + (has ? 'var(--green)' : 'var(--faint)') },
-            has ? `${numFmt(r.ch.words || 0)}字` : '待写'));
+            has ? `${numFmt(r.ch.words || 0)}${t('common.wordsShort')}` : t('writing.todo')));
         listEl.append(it);
       }
-      if (!items.length) listEl.append(h('div', { class: 'empty small', style: 'padding:14px' }, '无匹配'));
+      if (!items.length) listEl.append(h('div', { class: 'empty small', style: 'padding:14px' }, t('writing.noMatch')));
     };
     paint();
     return box;
@@ -151,63 +152,63 @@ export function mount(root, project, ctx) {
     const has = !!ch.content;
 
     // 章头
-    const titleInput = h('input', { type: 'text', value: row.title || '', placeholder: '章节标题（双击大纲页可改；此处同步）',
+    const titleInput = h('input', { type: 'text', value: row.title || '', placeholder: t('writing.titlePh'),
       oninput: debounce(async (e) => {
         try {
           const r = await api.colOp(p.id, 'rows', 'update', { id: row.id, patch: { title: e.target.value } });
           p.rows = r.arr;
-        } catch (err) { toast('标题保存失败：' + err.message, 'err', 4000); }
+        } catch (err) { toast(t('writing.titleSaveFail', { msg: err.message }), 'err', 4000); }
       }, 700) });
     const wcSpan = h('span', { id: 'writing-wc' }, numFmt(ch.words || 0));
     const stTag = h('span', { class: 'tag', style: has ? 'border-color:rgba(76,195,138,.5);color:var(--green)' : '' });
-    if (has) stTag.append('已写 ', wcSpan, ' 字');
-    else stTag.textContent = '待写';
+    if (has) stTag.append(t('writing.writtenTag'), wcSpan, t('writing.writtenSuffix'));
+    else stTag.textContent = t('writing.todo');
     const curIdx = (p.rows || []).findIndex((x) => x.id === row.id);
-    const prevBtn = h('button', { class: 'btn sm', title: '上一章', disabled: curIdx <= 0, onclick: () => goToChapter((p.rows || [])[curIdx - 1].id) }, '← 上章');
-    const nextBtn = h('button', { class: 'btn sm', title: '下一章', disabled: curIdx >= (p.rows || []).length - 1, onclick: () => goToChapter((p.rows || [])[curIdx + 1].id) }, '下章 →');
+    const prevBtn = h('button', { class: 'btn sm', title: t('writing.prev'), disabled: curIdx <= 0, onclick: () => goToChapter((p.rows || [])[curIdx - 1].id) }, t('writing.prev'));
+    const nextBtn = h('button', { class: 'btn sm', title: t('writing.next'), disabled: curIdx >= (p.rows || []).length - 1, onclick: () => goToChapter((p.rows || [])[curIdx + 1].id) }, t('writing.next'));
     const head = h('div', { class: 'card', style: 'padding:10px 14px' },
       h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' },
         prevBtn,
-        h('b', { style: 'font-size:15px' }, `卷${row.vol} · 第${row.no}章`),
+        h('b', { style: 'font-size:15px' }, t('writing.chHead', { vol: row.vol, no: row.no })),
         titleInput,
         stTag,
-        h('span', { class: 'small faint' }, ch.model ? '最近：' + ch.model : ''),
+        h('span', { class: 'small faint' }, ch.model ? t('writing.recent', { model: ch.model }) : ''),
         h('span', { style: 'margin-left:auto;display:flex;gap:6px' }, nextBtn)));
     box.append(head);
 
     // 大纲速览
     box.append(h('details', { class: 'fold' },
-      h('summary', {}, `本章大纲 ${row.goal ? '：' + String(row.goal).slice(0, 60) : '（未填目标）'}`),
+      h('summary', {}, t('writing.fold', { goal: row.goal ? '：' + String(row.goal).slice(0, 60) : t('writing.foldNone') })),
       h('div', { class: 'fold-body' },
-        row.goal ? h('div', {}, h('b', { class: 'small' }, '目标：'), row.goal) : null,
-        (row.beats || []).length ? h('div', { class: 'small muted', style: 'margin-top:4px' }, '节拍：' + (row.beats || []).map((b, i) => `${i + 1}.${b}`).join('　')) : null,
-        (row.cast || []).length ? h('div', { class: 'small muted', style: 'margin-top:4px' }, '登场：' + row.cast.join('、') + (row.pov ? `　·　视角：${row.pov}` : '')) : null,
-        row.note ? h('div', { class: 'small muted', style: 'margin-top:4px' }, '备注：' + row.note) : null)));
+        row.goal ? h('div', {}, h('b', { class: 'small' }, t('writing.goal')), row.goal) : null,
+        (row.beats || []).length ? h('div', { class: 'small muted', style: 'margin-top:4px' }, t('writing.beats') + (row.beats || []).map((b, i) => `${i + 1}.${b}`).join('　')) : null,
+        (row.cast || []).length ? h('div', { class: 'small muted', style: 'margin-top:4px' }, t('writing.cast') + row.cast.join('、') + (row.pov ? `　·　视角：${row.pov}` : '')) : null,
+        row.note ? h('div', { class: 'small muted', style: 'margin-top:4px' }, t('writing.note') + row.note) : null)));
 
     // AI 动作
-    const hint = h('input', { type: 'text', id: 'write-inst', placeholder: 'AI 指令（如：以林照影视角重写 / 补一段氛围 / 让冲突更含蓄）…', style: 'flex:1;min-width:160px' });
+    const hint = h('input', { type: 'text', id: 'write-inst', placeholder: t('writing.aiHint'), style: 'flex:1;min-width:160px' });
     const aiRow = h('div', { class: 'actions-bar' },
-      aiBtn('✍ 撰写', '全新撰写本章（按大纲+前情+记忆）', 'chapter_write', 'prose'),
-      aiBtn('＋ 续写', '从当前末尾继续写', 'chapter_continue', 'prose'),
-      aiBtn('⟳ 重写', '按指令整体重写', 'chapter_rewrite', 'prose'),
-      aiBtn('✨ 润色', '保持剧情润色文字', 'chapter_polish', 'prose'),
+      aiBtn(t('writing.write'), t('writing.writeTip'), 'chapter_write', 'prose'),
+      aiBtn(t('writing.continue'), t('writing.continueTip'), 'chapter_continue', 'prose'),
+      aiBtn(t('writing.rewrite'), t('writing.rewriteTip'), 'chapter_rewrite', 'prose'),
+      aiBtn(t('writing.polish'), t('writing.polishTip'), 'chapter_polish', 'prose'),
       hint,
-      h('button', { class: 'btn sm', onclick: () => openGenFor({ action: 'chapter_summary', title: `归档记忆：第${row.no}章`, kind: 'json', args: { rowId: row.id }, rowId: row.id, onApplied: afterReload }) }, '📌 归档记忆'),
+      h('button', { class: 'btn sm', onclick: () => openGenFor({ action: 'chapter_summary', title: t('writing.archiveTitle', { no: row.no }), kind: 'json', args: { rowId: row.id }, rowId: row.id, onApplied: afterReload }) }, t('writing.archive')),
       h('button', { class: 'btn sm ghost', onclick: async () => {
-        const yes = await confirmDialog('清除本章正文', '将清空本章已写内容（可撤销）。', { okText: '清空', danger: true });
+        const yes = await confirmDialog(t('writing.clearTitle'), t('writing.clearMsg'), { okText: t('writing.clearOk'), danger: true });
         if (!yes) return;
         draftBuf = null;
         try {
           await api.colOp(p.id, 'rows', 'update', { id: row.id, patch: { 'ch.content': '', 'ch.words': 0, 'ch.status': 'plan' } });
           remount();
-        } catch (e) { toast('清空失败：' + e.message, 'err', 4000); }
-      } }, '清空'));
+        } catch (e) { toast(t('writing.clearFail', { msg: e.message }), 'err', 4000); }
+      } }, t('writing.clear')));
     box.append(aiRow);
 
     // 正文编辑器
     const ta = editor = h('textarea', {
       spellcheck: 'false',
-      placeholder: '在这里写正文… 或点击上方 AI 动作生成初稿后继续手改。\n\n提示：正文会自动保存；每章写完点「归档记忆」记录 事实/伏笔状态。',
+      placeholder: t('writing.editorPh'),
       style: 'width:100%;min-height:520px;font-family:var(--font-serif);font-size:16px;line-height:2.05;padding:18px 20px;background:var(--bg)',
       oninput: (e) => {
         ch._prevHas = hadBefore || !!ch.content;
@@ -216,7 +217,7 @@ export function mount(root, project, ctx) {
     }, ch.content || '');
     if (ch.content) ta.value = ch.content;
     ta.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); flushEditor(); toast('已保存', 'ok', 1200); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); flushEditor(); toast(t('writing.saved'), 'ok', 1200); }
     });
     ta.addEventListener('select', () => updateSelBtn());
     ta.addEventListener('mouseup', updateSelBtn);
@@ -225,10 +226,10 @@ export function mount(root, project, ctx) {
     box.append(ta);
 
     // 底部：摘要/字数/局部改写
-    const selBtn = h('button', { class: 'btn sm', disabled: true, title: '先在正文中选中一段文字', onclick: fixSelection });
+    const selBtn = h('button', { class: 'btn sm', disabled: true, title: t('writing.selTitle'), onclick: fixSelection });
     const statusBar = h('div', { class: 'btn-row', style: 'margin-top:8px' },
       selBtn,
-      ch.summary ? h('span', { class: 'small muted', style: 'flex:1' }, '已归档摘要：' + String(ch.summary).slice(0, 90) + (ch.summary.length > 90 ? '…' : '')) : null);
+      ch.summary ? h('span', { class: 'small muted', style: 'flex:1' }, t('writing.archived') + String(ch.summary).slice(0, 90) + (ch.summary.length > 90 ? '…' : '')) : null);
     box.append(statusBar);
     return box;
 
@@ -243,17 +244,17 @@ export function mount(root, project, ctx) {
       const s = ta.selectionStart, e = ta.selectionEnd;
       const hasSel = ta.value && e > s;
       selBtn.disabled = !hasSel;
-      selBtn.textContent = hasSel ? '✂ 局部改写选中段（AI）' : '✂ 局部改写（需先选中文字）';
+      selBtn.textContent = hasSel ? t('writing.selPh') : t('writing.selPhNone');
     }
     function fixSelection() {
       const s = ta.selectionStart, e = ta.selectionEnd;
       const selText = ta.value.slice(s, e).trim();
-      if (!selText) return toast('请先在正文中选中一段文字', 'warn');
-      const instruction = prompt('改写要求（如：更口语化 / 删减 / 改成侧面描写）：');
+      if (!selText) return toast(t('writing.selNeed'), 'warn');
+      const instruction = prompt(t('writing.selPrompt'));
       if (instruction == null) return;
       openGenFor({
         action: 'excerpt_fix', kind: 'prose', noApply: true, rowId: row.id,
-        title: '局部改写选中段',
+        title: t('writing.selTitle2'),
         args: { rowId: row.id, selText: selText.slice(0, 3800), instruction: instruction || '润色这段文字' },
         clientApply: async (payload) => {
           const newText = payload;

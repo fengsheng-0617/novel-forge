@@ -83,13 +83,26 @@ function projectStatus(p) {
   return '灵感阶段';
 }
 
-function newProject({ name, desc, demo } = {}) {
-  const now = util.nowISO();
+function capWorkspace(cap) {
+  // 非 novel 能力的通用「文本工作台」数据模型：源文本 + 能力专属参数 + 生成输出。
   return {
+    kind: cap || 'text',
+    source: [{ id: 's_' + util.uid(''), title: '', text: '', lang: '', meta: {} }], // 上传/粘贴的源文本
+    params: {},                   // 能力专属参数（如 doc: {topic} / email: {recipient,goal}）
+    outputs: [],                  // [{id, cap, action, label, kind, content, meta, createdAt}]
+  };
+}
+
+function newProject({ name, desc, demo, cap } = {}) {
+  const now = util.nowISO();
+  const capId = cap && cap !== 'novel' ? String(cap) : 'novel';
+  const base = {
     id: 'nf_' + util.uid(''),
-    name: (name || '未命名新书').slice(0, 60),
+    name: (name || '未命名项目').slice(0, 60),
     desc: (desc || '').slice(0, 200),
     demo: !!demo,
+    cap: capId,                   // 能力：novel 默认；content/doc/email 为非小说工作台
+    language: '',                 // 创作/输出语言（空=自动/跟随源，或项目设置覆盖）
     createdAt: now,
     updatedAt: now,
     settings: {},                 // 项目级模型覆盖 {providerId,model,temperature,chapterWords}
@@ -105,6 +118,8 @@ function newProject({ name, desc, demo } = {}) {
     continuity: { entries: [] },
     audits: [],
   };
+  if (capId === 'novel') return base;
+  return Object.assign(base, { workspace: capWorkspace(capId) });
 }
 
 function create(opts) {
@@ -193,7 +208,7 @@ function transact(p, label, fn) {
 
 // ---------------- ops ----------------
 
-const DOC_POINTERS = new Set(['idea', 'bible', 'styleGuide', 'continuity', 'audits', 'volumes']);
+const DOC_POINTERS = new Set(['idea', 'bible', 'styleGuide', 'continuity', 'audits', 'volumes', 'workspace', 'language']);
 
 function docSet(p, pointer, value, tab) {
   if (!DOC_POINTERS.has(pointer)) { const e = new Error('不允许直接修改该字段'); e.status = 400; throw e; }
@@ -210,7 +225,7 @@ function metaPatch(p, patch, tab) {
   pushUndo(p, '修改项目信息', 'meta', 'settings', util.clone(p.settings || {}));
   // whitelisted top-level meta + settings overlay
   for (const k of Object.keys(patch)) {
-    if (k === 'id' || k === 'createdAt' || k === 'demo' || k === 'rows' || k === 'characters') continue;
+    if (k === 'id' || k === 'createdAt' || k === 'demo' || k === 'rows' || k === 'characters' || k === 'cap') continue;
     if (k === 'settings') {
       p.settings = Object.assign({}, p.settings || {}, util.clone(patch.settings));
       continue;
@@ -310,5 +325,5 @@ function countsOf(p) {
 
 module.exports = {
   init, validId, listProjects, loadProject, create, duplicate, remove, saveNow, importProject,
-  docSet, metaPatch, colOp, undo, transact, countsOf, newProject,
+  docSet, metaPatch, colOp, undo, transact, countsOf, newProject, capWorkspace,
 };

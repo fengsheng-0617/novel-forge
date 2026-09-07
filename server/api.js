@@ -10,6 +10,7 @@ const llm = require('./llm');
 const actionsMod = require('./actions');
 const pipeline = require('./pipeline');
 const exportMod = require('./export');
+const capsMod = require('./capabilities');
 const { APP } = require('./defaults');
 const { buildDemo } = require('./seedDemo');
 
@@ -103,6 +104,14 @@ function routeTable() {
       }
     }],
 
+    // ---------- capabilities ----------
+    ['GET', '/api/capabilities', async (ctx) => ok(ctx.res, { capabilities: capsMod.listCapabilities() })],
+    ['GET', '/api/capabilities/:id', async (ctx) => {
+      const c = capsMod.getCapability(ctx.params.id);
+      if (!c) return send(ctx.res, 404, { ok: false, error: '未知能力: ' + ctx.params.id });
+      ok(ctx.res, { capability: c });
+    }],
+
     // ---------- project library ----------
     ['GET', '/api/projects', async (ctx) => ok(ctx.res, { projects: store.listProjects() })],
     ['POST', '/api/projects', async (ctx) => {
@@ -112,8 +121,9 @@ function routeTable() {
         eventsMod.log('system', `已创建示例项目《${p.name}》`, p.id);
         return ok(ctx.res, { project: p });
       }
-      const p = store.create({ name: body.name, desc: body.desc });
-      eventsMod.log('system', `新建项目《${p.name}》`, p.id);
+      const cap = body.cap && capsMod.getCapability(body.cap) ? body.cap : (body.cap === 'novel' ? 'novel' : 'novel');
+      const p = store.create({ name: body.name, desc: body.desc, cap });
+      eventsMod.log('system', `新建项目《${p.name}》（能力：${cap}）`, p.id);
       ok(ctx.res, { project: p });
     }],
     ['GET', '/api/projects/:id', async (ctx) => {
@@ -147,6 +157,21 @@ function routeTable() {
       const p = requireProject(ctx.params.id);
       store.docSet(p, body.pointer, body.value, tabOf(ctx));
       ok(ctx.res, { project: p });
+    }],
+    ['PUT', '/api/projects/:id/workspace', async (ctx) => {
+      const body = await util.readJSON(ctx.req);
+      const p = requireProject(ctx.params.id);
+      // 非 novel 能力工作台：写入源文本/参数/输出（原子操作，支持撤销）
+      const ws = Object.assign({}, p.workspace || {}, {
+        kind: p.cap || 'text',
+        source: body.source !== undefined ? body.source : (p.workspace || {}).source,
+        params: body.params !== undefined ? body.params : (p.workspace || {}).params || {},
+      });
+      if (body.language !== undefined && body.language !== null) {
+        if (body.language === '') p.language = ''; else p.language = String(body.language).slice(0, 64);
+      }
+      store.transact(p, '更新能力工作台', () => { p.workspace = ws; });
+      ok(ctx.res, { project: p, workspace: p.workspace });
     }],
     ['POST', '/api/projects/:id/col', async (ctx) => {
       const body = await util.readJSON(ctx.req);

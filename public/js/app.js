@@ -3,6 +3,7 @@
 import { h, clear, toast, debounce, confirmDialog } from './ui.js';
 import { api, TAB_ID, fmtTime } from './api.js';
 import { openGen, closeGenPanel, setEngineProviders } from './components/genPanel.js';
+import { t, langSelect } from './i18n.js';
 
 import * as viewLibrary from './views/library.js';
 import * as viewIdea from './views/idea.js';
@@ -13,19 +14,20 @@ import * as viewWriting from './views/writing.js';
 import * as viewAudit from './views/audit.js';
 import * as viewExport from './views/exportView.js';
 import * as viewSettings from './views/settings.js';
+import * as viewCapStudio from './views/capStudio.js';
 
 // ---------- 路由与阶段 ----------
 export const STAGES = [
-  { key: 'idea', label: '灵感点子', n: '①', views: viewIdea, p: 'idea' },
-  { key: 'bible', label: '世界观设定', n: '②', views: viewBible, p: 'bible' },
-  { key: 'characters', label: '人物群像', n: '③', views: viewChars, p: 'characters' },
-  { key: 'outline', label: '卷章大纲', n: '④', views: viewOutline, p: 'outline' },
-  { key: 'writing', label: '章节写作', n: '⑤', views: viewWriting, p: 'writing' },
-  { key: 'audit', label: '审校连续性', n: '⑥', views: viewAudit, p: 'audit' },
-];
+  { key: 'idea', n: '①', views: viewIdea, p: 'idea' },
+  { key: 'bible', n: '②', views: viewBible, p: 'bible' },
+  { key: 'characters', n: '③', views: viewChars, p: 'characters' },
+  { key: 'outline', n: '④', views: viewOutline, p: 'outline' },
+  { key: 'writing', n: '⑤', views: viewWriting, p: 'writing' },
+  { key: 'audit', n: '⑥', views: viewAudit, p: 'audit' },
+].map((s) => ({ ...s, label: t('stage.' + s.key) }));
 export const EXTRA_VIEWS = [
-  { key: 'export', label: '导出成书', n: '⇩', views: viewExport, p: 'export' },
-];
+  { key: 'export', n: '⇩', views: viewExport, p: 'export' },
+].map((s) => ({ ...s, label: t('stage.' + s.key) }));
 
 // ---------- 全局状态 ----------
 export const state = {
@@ -54,9 +56,9 @@ export function stageSummary(p) {
   if (!p) return {};
   const rows = p.rows || [];
   return {
-    idea: (p.idea && p.idea.title && p.idea.premise) ? '已立项' : '待深化',
+    idea: (p.idea && p.idea.title && p.idea.premise) ? t('stage.sum.ideaOk') : t('stage.sum.ideaTodo'),
     ideaN: (p.idea && p.idea.candidates || []).length,
-    bible: (p.bible && p.bible.sections || []).length ? `${(p.bible.sections || []).length} 节设定` : '未生成',
+    bible: (p.bible && p.bible.sections || []).length ? t('stage.sum.bibleSections', { n: (p.bible.sections || []).length }) : t('stage.sum.bibleNone'),
     charsN: (p.characters || []).length,
     rowsN: rows.length,
     writtenN: rows.filter((r) => r.ch && r.ch.content).length,
@@ -110,27 +112,28 @@ function renderTopbar() {
   clear(tb);
   const brand = h('div', { class: 'brand', onclick: () => { location.hash = '#/'; } },
     h('div', { class: 'logo' }, '文'),
-    h('div', {}, h('b', {}, '织文 NovelForge'), h('small', {}, 'AI 小说创作工坊')));
+    h('div', {}, h('b', {}, t('app.name')), h('small', {}, t('app.tagline'))));
   tb.append(brand, h('div', { class: 'top-spacer' }));
 
   if (state.project) {
     const pname = h('b', { style: 'font-size:15px' }, state.project.name);
-    tb.append(h('div', { class: 'small muted', style: 'margin-right:6px' }, '当前：'), pname);
+    tb.append(h('div', { class: 'small muted', style: 'margin-right:6px' }, t('shell.current')), pname);
   }
   tb.append(pipelineChip());
-  const undoBtn = h('button', { class: 'undo-btn', title: '撤销上一步（AI 应用/结构修改）', onclick: doUndo }, '↶ 撤销');
+  const undoBtn = h('button', { class: 'undo-btn', title: t('shell.undo'), onclick: doUndo }, t('shell.undoBtn'));
   tb.append(undoBtn);
-  const logBtn = h('button', { class: 'undo-btn', onclick: toggleLogs }, '日志');
+  const logBtn = h('button', { class: 'undo-btn', onclick: toggleLogs }, t('shell.logs'));
   tb.append(logBtn);
-  const settingsBtn = h('button', { class: 'undo-btn', onclick: () => { location.hash = '#/settings'; } }, '⚙ 设置');
+  const settingsBtn = h('button', { class: 'undo-btn', onclick: () => { location.hash = '#/settings'; } }, t('shell.settings'));
   tb.append(settingsBtn);
+  tb.append(langSelect()); // ⚙ 语言选择器（右上角）
 }
 
 async function doUndo() {
   if (!state.project) return;
   try {
     const r = await api.undo(state.project.id);
-    toast(r.undone ? '已撤销：' + r.undone : '没有可撤销的操作', r.undone ? 'ok' : 'warn');
+    toast(r.undone ? t('shell.undoDone', { label: r.undone }) : t('shell.undoNone'), r.undone ? 'ok' : 'warn');
     await reloadProject();
   } catch (e) { toastErr(e); }
 }
@@ -140,17 +143,17 @@ function pipelineChip() {
   const chip = h('div', { class: 'chip ' + (st.status === 'running' ? 'running' : st.status === 'error' ? 'error' : st.status === 'done' || st.status === 'stopped' ? 'done' : '') },
     h('span', { class: 'dot' }));
   if (st.status === 'idle') {
-    chip.append('流水线空闲');
-    if (st.last) chip.append(h('span', { class: 'faint' }, ` · 上次：${st.last.status}${st.last.done ? '(' + st.last.done + '步)' : ''}`));
+    chip.append(t('shell.pipeIdle'));
+    if (st.last) chip.append(h('span', { class: 'faint' }, t('shell.pipeLast', { status: st.last.status, done: st.last.done ? '(' + st.last.done + t('shell.pipeSteps') + ')' : '' })));
   } else {
-    chip.append(`${st.status === 'running' ? '连载中' : st.status === 'paused' ? '已暂停' : st.status === 'stopping' ? '停止中' : st.status} · ${st.label || ''}`);
+    chip.append(`${st.status === 'running' ? t('shell.pipeRunning') : st.status === 'paused' ? t('shell.pipePaused') : st.status === 'stopping' ? t('shell.pipeStopping') : st.status} · ${st.label || ''}`);
     if (st.done != null) chip.append(h('b', {}, `${st.done}${st.total ? '/' + st.total : ''}`));
   }
   if (st.status === 'running' || st.status === 'paused' || st.status === 'stopping') {
     const wrap = h('div', { class: 'btn-row', style: 'gap:4px' });
-    if (st.status === 'running') wrap.append(h('button', { class: 'btn sm', onclick: () => pipe('pause') }, '暂停'));
-    if (st.status === 'paused') wrap.append(h('button', { class: 'btn sm', onclick: () => pipe('resume') }, '继续'));
-    wrap.append(h('button', { class: 'btn sm danger', onclick: () => pipe('stop') }, '停止'));
+    if (st.status === 'running') wrap.append(h('button', { class: 'btn sm', onclick: () => pipe('pause') }, t('common.pause')));
+    if (st.status === 'paused') wrap.append(h('button', { class: 'btn sm', onclick: () => pipe('resume') }, t('common.resume')));
+    wrap.append(h('button', { class: 'btn sm danger', onclick: () => pipe('stop') }, t('common.stop')));
     return h('span', { style: 'display:flex;gap:6px;align-items:center' }, chip, wrap);
   }
   return chip;
@@ -180,12 +183,12 @@ function renderPbar() {
     if (!editingName) {
       nameRow.append(
         h('div', { style: 'display:flex;gap:6px;align-items:center;margin-bottom:4px' },
-          h('b', { title: '点击重命名', style: 'font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer',
+          h('b', { title: t('shell.pbar.renameTitle'), style: 'font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer',
             onclick: () => { editingName = true; paintName(); } }, p.name),
-          h('span', { class: 'demo-flag', style: 'position:static;flex:0 0 auto' }, p.demo ? '示例' : ''),
-          h('button', { class: 'btn sm', style: 'margin-left:auto', title: '重命名作品', onclick: () => { editingName = true; paintName(); } }, '改名')));
+          h('span', { class: 'demo-flag', style: 'position:static;flex:0 0 auto' }, p.demo ? t('shell.pbar.demo') : ''),
+          h('button', { class: 'btn sm', style: 'margin-left:auto', title: t('shell.pbar.rename'), onclick: () => { editingName = true; paintName(); } }, t('common.rename'))));
     } else {
-      const inp = h('input', { type: 'text', value: p.name, placeholder: '作品名', style: 'flex:1;min-width:0' });
+      const inp = h('input', { type: 'text', value: p.name, placeholder: t('shell.pbar.workName'), style: 'flex:1;min-width:0' });
       const save = async () => {
         const v = inp.value.trim();
         editingName = false;
@@ -200,8 +203,8 @@ function renderPbar() {
       });
       nameRow.append(h('div', { style: 'display:flex;gap:6px;align-items:center;margin-bottom:4px' },
         inp,
-        h('button', { class: 'btn sm primary', onclick: save }, '保存'),
-        h('button', { class: 'btn sm', onclick: () => { editingName = false; paintName(); } }, '取消')));
+        h('button', { class: 'btn sm primary', onclick: save }, t('shell.pbar.save')),
+        h('button', { class: 'btn sm', onclick: () => { editingName = false; paintName(); } }, t('shell.pbar.cancel'))));
       inp.focus();
       inp.select();
     }
@@ -210,14 +213,14 @@ function renderPbar() {
   bar.append(
     nameRow,
     h('div', { class: 'small faint', style: 'margin-bottom:8px' },
-      `已写 ${sum.writtenN}/${sum.rowsN || 0} 章 · ${sum.charsN} 角色`),
+      t('shell.pbar.written', { written: sum.writtenN, total: sum.rowsN || 0, chars: sum.charsN })),
   );
 
   const title = h('div', { style: 'display:flex;justify-content:space-between;align-items:center' },
-    h('span', { class: 'small muted', style: 'font-weight:600' }, '创作流水线'),
+    h('span', { class: 'small muted', style: 'font-weight:600' }, t('shell.pbar.pipeline')),
     h('span', { style: 'display:flex;gap:4px' },
-      h('button', { class: 'btn sm', title: '复制项目', onclick: () => dupProject() }, '复制'),
-      h('button', { class: 'btn sm danger', title: '删除项目', onclick: () => delProject() }, '删除')));
+      h('button', { class: 'btn sm', title: t('shell.pbar.copy'), onclick: () => dupProject() }, t('shell.pbar.copy')),
+      h('button', { class: 'btn sm danger', title: t('shell.pbar.delTitle'), onclick: () => delProject() }, t('shell.pbar.del'))));
   bar.append(title);
 
   const pills = h('div', { style: 'margin-top:6px' });
@@ -237,7 +240,7 @@ function renderPbar() {
   bar.append(pills);
 
   if (state.stale) {
-    bar.append(h('button', { class: 'btn sm', style: 'width:100%;margin:4px 0', onclick: async () => { state.stale = false; await reloadProject(); } }, '🔄 有后台更新，点击刷新'));
+    bar.append(h('button', { class: 'btn sm', style: 'width:100%;margin:4px 0', onclick: async () => { state.stale = false; await reloadProject(); } }, t('shell.pbar.stale')));
   }
   bar.append(pipelinePanel(p));
 }
@@ -246,7 +249,7 @@ async function dupProject() {
   if (!state.project) return;
   try {
     const r = await api.duplicateProject(state.project.id);
-    toast('已复制项目', 'ok');
+    toast(t('shell.dupDone'), 'ok');
     await refreshLibrary();
     location.hash = '#/p/' + r.project.id + '/idea';
   } catch (e) { toastErr(e); }
@@ -254,7 +257,7 @@ async function dupProject() {
 async function delProject() {
   const p = state.project;
   if (!p) return;
-  const yes = await confirmDialog('删除项目', `确定删除《${p.name}》？项目数据将被永久移除（文件级删除，不可恢复）。建议先导出 JSON 备份。`, { okText: '删除', danger: true });
+  const yes = await confirmDialog(t('shell.pbar.delTitle'), t('shell.delConfirm', { name: p.name }), { okText: t('common.delete'), danger: true });
   if (!yes) return;
   try {
     await api.deleteProject(p.id);
@@ -267,34 +270,34 @@ async function delProject() {
 function pipelinePanel(p) {
   const box = h('div', { class: 'card', style: 'padding:10px 12px;margin-top:6px' });
   const st = state.pipeline;
-  box.append(h('div', { class: 'small muted', style: 'font-weight:600;margin-bottom:6px' }, '⚡ 无人值守流水线'));
+  box.append(h('div', { class: 'small muted', style: 'font-weight:600;margin-bottom:6px' }, t('shell.pbar.pipeTitle')));
   if (st.status === 'running' || st.status === 'paused' || st.status === 'stopping') {
     box.append(h('div', { class: 'small', style: 'margin-bottom:6px;word-break:break-all' }, `${st.status === 'running' ? '▶' : st.status === 'paused' ? '⏸' : '⏹'} ${st.label || ''}`));
     box.append(h('div', { class: 'btn-row' },
-      st.status === 'running' ? h('button', { class: 'btn sm', onclick: () => pipe('pause') }, '暂停') : null,
-      st.status === 'paused' ? h('button', { class: 'btn sm', onclick: () => pipe('resume') }, '继续') : null,
-      h('button', { class: 'btn sm danger', onclick: () => pipe('stop') }, '停止')));
+      st.status === 'running' ? h('button', { class: 'btn sm', onclick: () => pipe('pause') }, t('common.pause')) : null,
+      st.status === 'paused' ? h('button', { class: 'btn sm', onclick: () => pipe('resume') }, t('common.resume')) : null,
+      h('button', { class: 'btn sm danger', onclick: () => pipe('stop') }, t('common.stop'))));
   } else {
     const msg = st.last && st.last.projectId === p.id
-      ? h('div', { class: 'small faint', style: 'margin:2px 0 8px' }, `上次：${st.last.label || st.last.status}${st.last.error ? '（' + st.last.error.slice(0, 40) + '）' : ''}`) : null;
-    box.append(msg || h('div', { class: 'small faint', style: 'margin-bottom:8px' }, '把当前阶段推进到全书成稿：'));
+      ? h('div', { class: 'small faint', style: 'margin:2px 0 8px' }, t('app.pipeLast', { status: st.last.label || st.last.status, done: st.last.error ? '（' + st.last.error.slice(0, 40) + '）' : '' })) : null;
+    box.append(msg || h('div', { class: 'small faint', style: 'margin-bottom:8px' }, t('shell.pbar.pipeFull')));
     box.append(h('div', { class: 'btn-row' },
-      h('button', { class: 'btn sm', onclick: () => startPipe(p.id, 'full') }, '▶ 一键全自动'),
-      h('button', { class: 'btn sm', onclick: () => startPipe(p.id, 'write') }, '📖 大纲→连载全文')));
+      h('button', { class: 'btn sm', onclick: () => startPipe(p.id, 'full') }, t('shell.pbar.pipeOne')),
+      h('button', { class: 'btn sm', onclick: () => startPipe(p.id, 'write') }, t('shell.pbar.pipeChain'))));
   }
   return box;
 }
 
 async function startPipe(pid, mode) {
   const p = state.project;
-  const modeName = mode === 'full' ? '「一键全自动」' : '「大纲→连载全文」';
-  const yes = await confirmDialog('启动无人值守流水线',
-    `将以当前全局默认引擎${mode === 'full' ? '：从点子开始补全 设定→人物→大纲→逐章连载 的整条链路' : '：把大纲中尚未创作的章节按顺序全部写完并逐章归档记忆'}。\n\n确认启动${modeName}？`,
-    { okText: '启动' });
+  const modeName = mode === 'full' ? t('shell.pbar.modeFull') : t('shell.pbar.modeChain');
+  const yes = await confirmDialog(t('shell.pbar.pipeStart'),
+    t('shell.pbar.pipeStartMsg', { mode: mode === 'full' ? '' : '', detail: mode === 'full' ? t('shell.pbar.modeFullDetail') : t('shell.pbar.modeChainDetail'), modeName }),
+    { okText: t('common.ok') });
   if (!yes) return;
   try {
     await api.pipelineStart({ projectId: pid, mode });
-    toast('流水线已启动（可随时暂停/停止）', 'ok');
+    toast(t('shell.pbar.pipeStartOk'), 'ok');
     pollPipeline();
   } catch (e) { toastErr(e); }
 }
@@ -316,9 +319,9 @@ function toggleLogs() {
   if (!logBox) {
     logBox = h('div', { id: 'log-root' },
       h('div', { style: 'display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line)' },
-        h('b', { class: 'small' }, '运行日志'),
-        h('button', { class: 'btn sm', style: 'margin-left:auto', onclick: () => clearLogs() }, '清屏'),
-        h('button', { class: 'btn sm', onclick: () => { logBox.classList.remove('on'); } }, '收起')));
+        h('b', { class: 'small' }, t('shell.logs.title')),
+        h('button', { class: 'btn sm', style: 'margin-left:auto', onclick: () => clearLogs() }, t('shell.logs.clear')),
+        h('button', { class: 'btn sm', onclick: () => { logBox.classList.remove('on'); } }, t('shell.logs.collapse'))));
     document.body.appendChild(logBox);
   }
   logBox.classList.toggle('on');
@@ -365,6 +368,11 @@ function renderShell() {
     return;
   }
   if (!p) { viewLibrary.mount(view, null, { reload: renderShell }); return; }
+  // 非 novel 能力项目 → 能力工作台视图
+  if (p.cap && p.cap !== 'novel') {
+    viewCapStudio.mount(view, p, { reload: renderShell });
+    return;
+  }
   const s = [...STAGES, ...EXTRA_VIEWS].find((x) => x.key === stage);
   if (!s) { viewLibrary.mount(view, null, { reload: renderShell }); return; }
   s.views.mount(view, p, mkCtx());

@@ -3,19 +3,20 @@
 import { h, clear, toast, debounce, confirmDialog } from '../ui.js';
 import { api } from '../api.js';
 import { openGen } from '../components/genPanel.js';
+import { t } from '../i18n.js';
 
 const ROLES = ['主角', '关键配角', '反派', '配角', '龙套'];
 
 const LONG_FIELDS = [
-  ['backstory', '背景故事', 4], ['arc', '成长弧线', 3], ['secrets', '秘密 / 弱点', 2],
-  ['notes', '叙事功能备注', 2],
+  ['backstory', t('chars.backstory'), 4], ['arc', t('chars.arc'), 3], ['secrets', t('chars.secrets'), 2],
+  ['notes', t('chars.notes'), 2],
 ];
 const SHORT_FIELDS = [
-  ['oneLine', '一句话定位', '如 退役测绘员，回雾港接任灯塔看守'],
-  ['appearance', '外貌与标志性细节', ''],
-  ['personality', '性格（外在 + 内在反差）', ''],
-  ['goals', '欲望与目标', ''],
-  ['speechStyle', '说话风格', '口头禅 / 用词习惯'],
+  ['oneLine', t('chars.oneLine'), t('chars.oneLinePh')],
+  ['appearance', t('chars.appearance'), ''],
+  ['personality', t('chars.personality'), ''],
+  ['goals', t('chars.goals'), ''],
+  ['speechStyle', t('chars.speechStyle'), t('chars.speechPh')],
 ];
 
 let selId = null;
@@ -37,7 +38,7 @@ export function mount(root, project, ctx) {
       const r = await api.colOp(p.id, 'characters', 'update', { id: card.id, patch: normalizePatch(card) });
       p.characters = r.arr;
       if (ctx && ctx.onSelfChange) ctx.onSelfChange();
-    } catch (e) { toast('保存失败：' + e.message, 'err', 5000); }
+    } catch (e) { toast(t('chars.saveFail', { msg: e.message }), 'err', 5000); }
   }
   function normalizePatch(c) {
     const patch = {};
@@ -52,32 +53,32 @@ export function mount(root, project, ctx) {
 
   function remount() { clear(root); mount(root, p, ctx); }
   function afterAi() { if (ctx.reloadProject) ctx.reloadProject(); else remount(); }
-  function toastErr(e) { toast('操作失败：' + e.message, 'err', 4000); }
+  function toastErr(e) { toast(t('chars.opFail', { msg: e.message }), 'err', 4000); }
 
-  const hintEl = h('input', { type: 'text', placeholder: '新增角色的需求（可选）…', style: 'flex:1;min-width:180px' });
+  const hintEl = h('input', { type: 'text', placeholder: t('chars.hintPh'), style: 'flex:1;min-width:180px' });
   root.append(
     h('div', { class: 'page-title' },
-      h('h1', {}, '③ 人物群像'),
-      h('span', { class: 'sub' }, `${list.length} 名角色 · 主角/反派动机必须自洽，说话风格直接影响正文对话质量`)),
-    h('div', { class: 'page-desc' }, '左侧选人 → 右侧编辑卡片（自动保存）。所有字段都会注入「章节写作」的上下文中；先让 AI 生成群像，再逐卡精修，最后做一次全组一致性校准。'),
+      h('h1', {}, t('chars.title')),
+      h('span', { class: 'sub' }, t('chars.sub', { n: list.length }))),
+    h('div', { class: 'page-desc' }, t('chars.desc')),
     h('div', { class: 'actions-bar' },
-      h('button', { class: 'btn primary', onclick: () => openGen(p, { action: 'characters_generate', title: 'AI 生成完整人物群像', kind: 'json', args: { count: 10 }, onApplied: afterAi }) }, '🤖 生成群像（整组替换）'),
-      h('button', { class: 'btn', onclick: () => openGen(p, { action: 'characters_align', title: 'AI 一致性校准（整组）', kind: 'json', args: {}, onApplied: afterAi }) }, '🤖 校准一致性'),
+      h('button', { class: 'btn primary', onclick: () => openGen(p, { action: 'characters_generate', title: t('chars.gen'), kind: 'json', args: { count: 10 }, onApplied: afterAi }) }, t('chars.gen')),
+      h('button', { class: 'btn', onclick: () => openGen(p, { action: 'characters_align', title: t('chars.align'), kind: 'json', args: {}, onApplied: afterAi }) }, t('chars.align')),
       h('button', { class: 'btn', onclick: () => openGen(p, {
-        action: 'character_add', title: 'AI 新增一位角色', kind: 'json',
-        args: { instruction: hintEl.value.trim() || '按题材需要补充一位新角色' }, onApplied: afterAi,
-      }) }, '🤖 新增角色'),
+        action: 'character_add', title: t('chars.add'), kind: 'json',
+        args: { instruction: hintEl.value.trim() || t('chars.addNeed') }, onApplied: afterAi,
+      }) }, t('chars.add')),
       hintEl,
     ),
-    h('div', { class: 'split' }, listPane(), sel ? cardPane(sel) : h('div', { class: 'empty' }, '← 选择或新建一个角色')));
+    h('div', { class: 'split' }, listPane(), sel ? cardPane(sel) : h('div', { class: 'empty' }, t('chars.empty'))));
 
   function listPane() {
     const box = h('div', { class: 'list-pane' });
     const head = h('div', { class: 'lp-head' });
-    const q = h('input', { type: 'text', placeholder: '搜索', style: 'flex:1;min-width:0', oninput: (e) => { filter = e.target.value; refresh(); } });
+    const q = h('input', { type: 'text', placeholder: t('chars.search'), style: 'flex:1;min-width:0', oninput: (e) => { filter = e.target.value; refresh(); } });
     head.append(q);
-    const roleSel = h('select', { style: 'width:auto', onchange: (e) => { filter = (e.target.value === '全部' ? '' : e.target.value + ':'); refresh(); } });
-    roleSel.append(h('option', {}, '全部'), ...ROLES.map((r) => h('option', {}, r)));
+    const roleSel = h('select', { style: 'width:auto', onchange: (e) => { filter = (e.target.value === t('chars.all') ? '' : e.target.value + ':'); refresh(); } });
+    roleSel.append(h('option', {}, t('chars.all')), ...ROLES.map((r) => h('option', {}, r)));
     head.append(roleSel);
     const listEl = h('div', {});
     box.append(head, listEl);
@@ -88,15 +89,15 @@ export function mount(root, project, ctx) {
         if (filter.endsWith(':')) return c.role === filter.slice(0, -1);
         return (c.name || '').includes(filter) || (c.oneLine || '').includes(filter);
       });
-      if (!items.length) listEl.append(h('div', { class: 'empty small', style: 'padding:22px' }, '无匹配角色'));
+      if (!items.length) listEl.append(h('div', { class: 'empty small', style: 'padding:22px' }, t('chars.none')));
       items.forEach((c, idx) => {
         const item = h('div', { class: 'list-item' + (selId === c.id ? ' sel' : ''), onclick: () => { selId = c.id; remount(); } },
-          h('span', { class: 'nm' }, c.name || '（无名）'),
-          h('span', { class: 'role-pill role-' + (c.role || '配角') }, c.role || '配角'),
+          h('span', { class: 'nm' }, c.name || t('chars.noname')),
+          h('span', { class: 'role-pill role-' + (c.role || t('chars.supporting')) }, c.role || t('chars.supporting')),
           h('span', { style: 'margin-left:auto;display:flex;gap:4px' },
-            c.pov ? h('span', { class: 'small faint', title: '主视角角色' }, '🎥') : null,
-            h('button', { class: 'btn sm', style: 'padding:1px 6px', title: '上移', onclick: (e) => { e.stopPropagation(); move(c.id, idx - 1); } }, '↑'),
-            h('button', { class: 'btn sm', style: 'padding:1px 6px', title: '下移', onclick: (e) => { e.stopPropagation(); move(c.id, idx + 1); } }, '↓')));
+            c.pov ? h('span', { class: 'small faint', title: t('chars.povChar') }, '🎥') : null,
+            h('button', { class: 'btn sm', style: 'padding:1px 6px', title: t('chars.up'), onclick: (e) => { e.stopPropagation(); move(c.id, idx - 1); } }, '↑'),
+            h('button', { class: 'btn sm', style: 'padding:1px 6px', title: t('chars.down'), onclick: (e) => { e.stopPropagation(); move(c.id, idx + 1); } }, '↓')));
         listEl.append(item);
       });
     };
@@ -107,13 +108,13 @@ export function mount(root, project, ctx) {
         remount();
       } catch (e) { toastErr(e); }
     };
-    const toastErr = (e) => toast('操作失败：' + e.message, 'err', 4000);
+    const toastErr = (e) => toast(t('chars.opFail', { msg: e.message }), 'err', 4000);
     refresh();
     box.append(h('div', { class: 'lp-head', style: 'border-top:1px solid var(--line)' },
-      h('button', { class: 'btn sm primary', onclick: () => addBlank() }, '＋ 空白卡')));
+      h('button', { class: 'btn sm primary', onclick: () => addBlank() }, t('chars.addBlank'))));
     async function addBlank() {
       try {
-        const r = await api.colOp(p.id, 'characters', 'add', { item: { name: '新角色' + (list.length + 1), role: '配角' } });
+        const r = await api.colOp(p.id, 'characters', 'add', { item: { name: t('chars.newChar', { n: list.length + 1 }), role: '配角' } });
         p.characters = r.arr;
         selId = r.arr[r.arr.length - 1].id;
         remount();
@@ -125,30 +126,30 @@ export function mount(root, project, ctx) {
   function cardPane(c) {
     const box = h('div', { class: 'card' });
     const head = h('div', { class: 'btn-row', style: 'margin-bottom:10px' },
-      h('button', { class: 'btn sm primary', onclick: () => openGen(p, { action: 'character_flesh', title: `AI 精修「${c.name}」`, kind: 'json', args: { charId: c.id }, charId: c.id, onApplied: afterAi }) }, '🤖 精修此卡'),
+      h('button', { class: 'btn sm primary', onclick: () => openGen(p, { action: 'character_flesh', title: `AI 精修「${c.name}」`, kind: 'json', args: { charId: c.id }, charId: c.id, onApplied: afterAi }) }, t('chars.flesh')),
       h('button', { class: 'btn sm danger', onclick: async () => {
-        const yes = await confirmDialog('删除角色', `删除「${c.name}」？若正文章节已引用其名，请注意检查。`, { okText: '删除', danger: true });
+        const yes = await confirmDialog(t('chars.delete'), t('chars.delConfirm', { n: c.name }), { okText: t('common.delete'), danger: true });
         if (!yes) return;
         try {
           const r = await api.colOp(p.id, 'characters', 'remove', { id: c.id });
           p.characters = r.arr;
           selId = null;
           remount();
-        } catch (e) { toast('删除失败：' + e.message, 'err', 4000); }
-      } }, '删除'));
-    head.prepend(h('b', { style: 'font-size:16px' }, `${c.name || '（无名）'}`));
+        } catch (e) { toast(t('chars.delFail', { msg: e.message }), 'err', 4000); }
+      } }, t('chars.delete')));
+    head.prepend(h('b', { style: 'font-size:16px' }, `${c.name || t('chars.noname')}`));
     box.append(head);
 
     box.append(h('div', { class: 'two-col' },
       h('div', {},
-        fieldInput(c, 'name', '姓名', ''),
+        fieldInput(c, 'name', t('chars.name'), ''),
         h('div', { class: 'row-line', style: 'align-items:center' },
-          h('label', { class: 'field', style: 'flex:1;margin:0' }, h('span', {}, '角色定位'), h('select', { onchange: (e) => { c.role = e.target.value; saveDeb(); } }, ROLES.map((r) => h('option', { selected: c.role === r || undefined }, r)))),
-          h('label', { class: 'field', style: 'flex:1;margin:0' }, h('span', {}, '主视角'),
+          h('label', { class: 'field', style: 'flex:1;margin:0' }, h('span', {}, t('chars.role')), h('select', { onchange: (e) => { c.role = e.target.value; saveDeb(); } }, ROLES.map((r) => h('option', { selected: c.role === r || undefined }, r)))),
+          h('label', { class: 'field', style: 'flex:1;margin:0' }, h('span', {}, t('chars.pov')),
             h('select', { onchange: (e) => { c.pov = e.target.value === 'true'; saveDeb(); } },
-              h('option', { value: 'false', selected: !c.pov }, '否'),
-              h('option', { value: 'true', selected: !!c.pov }, '是（🎥 有视角章节）')))),
-        fieldInput(c, 'aliases', '别称（逗号分隔）', ''),
+              h('option', { value: 'false', selected: !c.pov }, t('chars.povNo')),
+              h('option', { value: 'true', selected: !!c.pov }, t('chars.povYes'))))),
+        fieldInput(c, 'aliases', t('chars.aliases'), ''),
         ...SHORT_FIELDS.map(([k, label, ph]) => fieldArea(c, k, label, 2, ph)),
       ),
       h('div', {},
@@ -166,14 +167,14 @@ export function mount(root, project, ctx) {
     function relationEditor(card) {
       const rels = card.relations = Array.isArray(card.relations) ? card.relations : [];
       const relBox = h('div', {});
-      relBox.append(h('div', { class: 'small muted', style: 'margin:2px 0 6px;font-weight:600' }, '人物关系'));
+      relBox.append(h('div', { class: 'small muted', style: 'margin:2px 0 6px;font-weight:600' }, t('chars.rels')));
       rels.forEach((r, i) => {
         relBox.append(h('div', { class: 'row-line' },
-          h('input', { type: 'text', value: r.name || '', placeholder: '相关人物名', style: 'flex:1.3', oninput: (e) => { r.name = e.target.value; saveDeb(); } }),
-          h('input', { type: 'text', value: r.desc || '', placeholder: '关系 / 态度', style: 'flex:2', oninput: (e) => { r.desc = e.target.value; saveDeb(); } }),
+          h('input', { type: 'text', value: r.name || '', placeholder: t('chars.relNamePh'), style: 'flex:1.3', oninput: (e) => { r.name = e.target.value; saveDeb(); } }),
+          h('input', { type: 'text', value: r.desc || '', placeholder: t('chars.relDescPh'), style: 'flex:2', oninput: (e) => { r.desc = e.target.value; saveDeb(); } }),
           h('button', { class: 'btn sm danger grow0', onclick: () => { rels.splice(i, 1); saveDeb(); remount(); } }, '✕')));
       });
-      relBox.append(h('button', { class: 'btn sm', onclick: () => { rels.push({ name: '', desc: '' }); remount(); } }, '＋ 关系'));
+      relBox.append(h('button', { class: 'btn sm', onclick: () => { rels.push({ name: '', desc: '' }); remount(); } }, t('chars.addRel')));
       return relBox;
     }
     return box;

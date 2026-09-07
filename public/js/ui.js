@@ -1,5 +1,6 @@
 // ui.js — DOM 小工具（无框架、防注入：默认 textContent）
 'use strict';
+import { t } from './i18n.js';
 
 /** 创建元素: h('div', {class:'x', onclick}, 'text'|node|[...]) */
 export function h(tag, attrs, ...children) {
@@ -75,12 +76,12 @@ export function modal({ title, body, foot, width, onClose }) {
   return { root: box, close: () => { document.removeEventListener('keydown', escClose); close(); } };
 }
 
-export function confirmDialog(title, message, { okText = '确定', danger = false } = {}) {
+export function confirmDialog(title, message, { okText = t('ui.ok'), danger = false } = {}) {
   return new Promise((resolve) => {
     const m = modal({
       title, body: h('div', { class: 'muted' }, message),
       foot: [
-        h('button', { class: 'btn', onclick: () => { m.close(); resolve(false); } }, '取消'),
+        h('button', { class: 'btn', onclick: () => { m.close(); resolve(false); } }, t('ui.cancel')),
         h('button', { class: 'btn ' + (danger ? 'danger' : 'primary'), onclick: () => { m.close(); resolve(true); } }, okText),
       ],
     });
@@ -88,7 +89,7 @@ export function confirmDialog(title, message, { okText = '确定', danger = fals
 }
 
 /** busy 遮罩（异步包装） */
-export async function busy(promise, label = '处理中…') {
+export async function busy(promise, label = t('ui.processing')) {
   const b = document.getElementById('busy');
   const card = clear(b).appendChild(h('div', { class: 'card' }, h('div', { class: 'spin' }), h('span', {}, label)));
   b.classList.add('on');

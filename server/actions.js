@@ -94,6 +94,7 @@ const CAPS = {
   tailRowsText: 10000, curRowText: 2800, castText: 4000, prevText: 3200, contText: 5600,
   existingContent: 12000, existingTail: 3600, auditScope: 34000, rowNow: 2800, charNow: 2600,
   charsTextName: 1400, openThreadText: 3000, chapterContent: 20000,
+  sourceText: 22000, sourceLang: 400, paramsText: 3000, outputsText: 4000, projLang: 200,
 };
 
 const ACTIONS = {
@@ -617,6 +618,54 @@ const ACTIONS = {
     },
   },
 
+  // ---------------- 记忆 / 审校 ----------------
+  chapter_summary: {
+    label: '章节记忆 · 摘要+事实+伏笔', stage: 'audit', kind: KIND.json, tpl: 't_chapter_summary',
+    needsRow: true,
+    order: ['curRowText', 'contText', 'chapterContent', 'extraNote'],
+    vars(ctx) {
+      const rows = ctx.p.rows || [];
+      const idx = (rows || []).findIndex((r) => r.id === ctx.args.rowId);
+      const from = Math.max(0, idx - 1);
+      return {};
+    },
+    mock(ctx) {
+      const p = ctx.p;
+      const lastThreads = ((p.continuity && p.continuity.entries) || []).slice(-1)[0];
+      return {
+        shape: 'json',
+        jsonExample: {
+          summary: `（模拟）第${ctx.row ? ctx.row.no : '?'}章《${ctx.row ? ctx.row.title : ''}》摘要：本章发生了哪些关键转折的概括文字。`,
+          facts: [`（模拟事实）${ctx.row ? ctx.row.title : ''} 的主要事件与人物状态变化。`],
+          threads: (lastThreads && lastThreads.threads ? lastThreads.threads : [{ name: '主线悬念', state: '推进中' }]).slice(0, 4).map((t) => ({ name: t.name, state: t.state || '推进中' })),
+        },
+      };
+    },
+    normalize(payload) {
+      const o = payload && typeof payload === 'object' ? payload : {};
+      return {
+        summary: String(o.summary || '').slice(0, 1200),
+        facts: (Array.isArray(o.facts) ? o.facts : []).slice(0, 30).map((f) => String(f).slice(0, 200)).filter(Boolean),
+        threads: (Array.isArray(o.threads) ? o.threads : []).slice(0, 40).map((t) => ({
+          name: String(t.name || '').slice(0, 40), state: String(t.state || t.status || '').slice(0, 300),
+        })).filter((t) => t.name && t.state),
+      };
+    },
+    apply(p, v, meta) {
+      const row = (p.rows || []).find((r) => r.id === meta.rowId);
+      if (!row) return '章节不存在';
+      if (v.summary) { row.ch = row.ch || {}; row.ch.summary = v.summary; }
+      const entries = (p.continuity && p.continuity.entries) || [];
+      const entry = {
+        at: `第${row.no}章《${row.title}》`, chapterNo: row.no, summary: v.summary || '',
+        facts: v.facts || [], threads: v.threads || [],
+      };
+      entries.push(entry);
+      p.continuity = { entries: entries.slice(-200) };
+      return `记忆已写入：第${row.no}章（${v.facts.length} 条事实 · ${v.threads.length} 条线索状态）`;
+    },
+  },
+
   audit_book: {
     label: '审校 · 全文一致性', stage: 'audit', kind: KIND.json, tpl: 't_audit_book',
     about: '对指定范围章节做编辑级审查，问题清单不入正文（可另存报告）',
@@ -647,6 +696,90 @@ const ACTIONS = {
       return `审查报告已生成：${(v.items || []).length} 条意见`;
     },
   },
+
+  // ---------------- 能力工作台：内容仿写/续写/改写 ----------------
+  content_analyze: {
+    label: '内容 · 分析原文', stage: 'content', kind: KIND.json, tpl: 't_content_analyze',
+    about: '分析上传/粘贴的源文本：题材、文风、基调、结构、人物与脉络，为仿写/续写/改写做准备。',
+    order: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText', 'extraNote'],
+    vars(ctx) { return ctxMod.fmtWorkspaceVars(ctx.p); },
+    mock(ctx) {
+      const w = (ctx.p.workspace || {}).source && ctx.p.workspace.source[0];
+      return {
+        shape: 'json',
+        jsonExample: {
+          genre: '（模拟）题材判定。', style: '（模拟）文风关键词。', tone: '（模拟）基调。',
+          structure: ['（模拟）结构一', '（模拟）结构二'], pov: '（模拟）人称/视角。',
+          characters: ['（模拟）角色A', '（模拟）角色B'], themes: ['（模拟）主题一', '（模拟）主题二'],
+          summary: '（模拟）' + String((w && w.text) || '').slice(0, 60),
+        },
+      };
+    },
+    normalize(payload) { return normalizeCapAnalyze(payload); },
+    apply(p, v, meta) { return applyCapAnalyze(p, v, meta); },
+  },
+  content_imitate: {
+    label: '内容 · 仿写', stage: 'content', kind: KIND.prose, tpl: 't_content_imitate',
+    about: '按源文本的文风/结构/人物脉络，仿写出同风格的新内容（可给新主题/情节）。',
+    order: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText', 'extraNote'],
+    vars(ctx) { return ctxMod.fmtWorkspaceVars(ctx.p); },
+    mock(ctx) {
+      return { shape: 'text', length: clampNum(ctx.args.words || 900, 200, 6000), names: (ctx.p.workspace && ctx.p.workspace.source && []) || [] };
+    },
+    normalize(text) { return String(text || '').trim(); },
+    apply(p, v, meta) { return applyCapOutput(p, v, meta, '内容仿写'); },
+  },
+  content_continue: {
+    label: '内容 · 续写', stage: 'content', kind: KIND.prose, tpl: 't_content_continue',
+    about: '从源文本末尾无缝接续写下去（保留原文，结果追加）。',
+    order: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText', 'extraNote'],
+    vars(ctx) { return ctxMod.fmtWorkspaceVars(ctx.p); },
+    mock(ctx) {
+      return { shape: 'text', length: clampNum(ctx.args.words || 900, 200, 6000), names: [] };
+    },
+    normalize(text) { return String(text || '').trim(); },
+    apply(p, v, meta) { return applyCapOutputCont(p, v, meta, '内容续写'); },
+  },
+  content_rewrite: {
+    label: '内容 · 改写', stage: 'content', kind: KIND.prose, tpl: 't_content_rewrite',
+    about: '按指令改写源文本（换风格/换主角/压缩/扩写/改语言等）。',
+    order: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText', 'extraNote'],
+    vars(ctx) { return ctxMod.fmtWorkspaceVars(ctx.p); },
+    mock(ctx) {
+      return { shape: 'text', length: clampNum(ctx.args.words || 900, 200, 6000), names: [] };
+    },
+    normalize(text) { return String(text || '').trim(); },
+    apply(p, v, meta) { return applyCapOutput(p, v, meta, '内容改写'); },
+  },
+
+  // ---------------- 能力：联合国安理会决议仿写 ----------------
+  doc_resolution: {
+    label: '公文 · 安理会决议仿写', stage: 'doc', kind: KIND.prose, tpl: 't_doc_resolution',
+    about: '仿照联合国安理会决议的体例（序言+编号条款+表决/主送），按议题生成一份决议草案。',
+    order: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText', 'extraNote'],
+    vars(ctx) { return ctxMod.fmtWorkspaceVars(ctx.p); },
+    mock(ctx) {
+      return { shape: 'text', length: clampNum(ctx.args.words || 1200, 400, 4000), names: [] };
+    },
+    normalize(text) { return String(text || '').trim(); },
+    apply(p, v, meta) {
+      // 更新 params.topic 若由指令提供，并落库
+      return applyCapOutput(p, v, meta, '安理会决议仿写');
+    },
+  },
+
+  // ---------------- 能力：学术套磁邮件编辑 ----------------
+  email_cold: {
+    label: '邮件 · 学术套磁编辑', stage: 'email', kind: KIND.prose, tpl: 't_email_cold',
+    about: '撰写/润色一封学术套磁邮件（申请博士/访学/合作），兼顾礼貌、信息量与得体表达。',
+    order: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText', 'extraNote'],
+    vars(ctx) { return ctxMod.fmtWorkspaceVars(ctx.p); },
+    mock(ctx) {
+      return { shape: 'text', length: clampNum(ctx.args.words || 500, 200, 2000), names: [] };
+    },
+    normalize(text) { return String(text || '').trim(); },
+    apply(p, v, meta) { return applyCapOutput(p, v, meta, '套磁邮件'); },
+  },
 };
 
 // attach shared prose context helper
@@ -671,6 +804,70 @@ function applyChapterContent(p, rowId, newContent, meta, histLabel) {
   ch.updatedAt = util.nowISO();
   row.ch = ch;
   return `第${row.no}章《${row.title}》正文已${histLabel === 'AI续写' ? '续写' : histLabel === 'AI润色' ? '润色' : '更新'}（${ch.words} 字）`;
+}
+
+// ---------------- 能力工作台 helpers ----------------
+
+function normalizeCapAnalyze(payload) {
+  const o = payload && typeof payload === 'object' ? payload : {};
+  return {
+    genre: String(o.genre || '').slice(0, 80),
+    style: String(o.style || '').slice(0, 400),
+    tone: String(o.tone || '').slice(0, 200),
+    structure: (Array.isArray(o.structure) ? o.structure : []).slice(0, 12).map((s) => String(s).slice(0, 200)),
+    pov: String(o.pov || '').slice(0, 200),
+    characters: (Array.isArray(o.characters) ? o.characters : []).slice(0, 40).map((s) => String(s).slice(0, 80)),
+    themes: (Array.isArray(o.themes) ? o.themes : []).slice(0, 20).map((s) => String(s).slice(0, 160)),
+    summary: String(o.summary || '').slice(0, 1200),
+    language: String(o.language || '').slice(0, 60),
+  };
+}
+
+function ensureWorkspace(p) {
+  if (!p.workspace) p.workspace = { kind: p.cap || 'text', source: [{ id: 's_' + util.uid(''), title: '', text: '', lang: '', meta: {} }], params: {}, outputs: [] };
+  if (!Array.isArray(p.workspace.outputs)) p.workspace.outputs = [];
+  if (!Array.isArray(p.workspace.source) || !p.workspace.source.length) p.workspace.source = [{ id: 's_' + util.uid(''), title: '', text: '', lang: '', meta: {} }];
+  return p.workspace;
+}
+
+function applyCapAnalyze(p, v, meta) {
+  const ws = ensureWorkspace(p);
+  if (!ws.source[0]) ws.source[0] = { id: 's_' + util.uid(''), title: '', text: '', lang: '', meta: {} };
+  ws.source[0].meta = Object.assign({}, ws.source[0].meta || {}, { analysis: v });
+  return `原文分析已更新（${v.genre ? v.genre + ' · ' : ''}${(v.characters || []).length} 角色 · ${(v.themes || []).length} 主题）`;
+}
+
+function capOutputEntry(p, v, meta, label) {
+  const ws = ensureWorkspace(p);
+  const entries = ws.outputs;
+  const action = meta && meta.action ? (ws._lastAction || '') : '';
+  const id = 'o_' + util.uid('');
+  if (meta && meta.replaceId) {
+    // 覆盖上一版输出（改写/重写时便于迭代）
+    const i = entries.findIndex((x) => x.id === meta.replaceId);
+    if (i >= 0) { entries[i].content = v; entries[i].updatedAt = util.nowISO(); return entries[i]; }
+  }
+  const e = { id, cap: p.cap || 'text', action: action || 'cap', label, kind: 'prose', content: v, meta: Object.assign({}, meta && meta.payload), createdAt: util.nowISO(), updatedAt: util.nowISO() };
+  entries.push(e);
+  // 只保留最近若干条，避免无限增长
+  if (entries.length > 60) entries.splice(0, entries.length - 60);
+  return e;
+}
+
+function applyCapOutput(p, v, meta, label) {
+  const e = capOutputEntry(p, v, meta, label);
+  return `${label} 已生成（第 ${(p.workspace && p.workspace.outputs || []).length} 条输出，${util.charCount(v)} 字）`;
+}
+
+function applyCapOutputCont(p, v, meta, label) {
+  // 续写：把已写内容与原文衔接，替换源文本的上一版输出
+  const ws = ensureWorkspace(p);
+  const src = ws.source[0] || (ws.source[0] = { id: 's_' + util.uid(''), title: '', text: '', lang: '', meta: {} });
+  const merged = [(src.text || ''), v].filter(Boolean).join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
+  const e = { id: 'o_' + util.uid(''), cap: p.cap || 'text', action: 'content_continue', label, kind: 'prose', content: merged, meta: {}, createdAt: util.nowISO(), updatedAt: util.nowISO() };
+  ws.outputs.push(e);
+  src.text = merged;
+  return `${label} 已续写（原文 + ${util.charCount(v)} 字，共 ${util.charCount(merged)} 字）`;
 }
 
 // ============================================================ 执行引擎
@@ -785,6 +982,9 @@ async function generate(opts) {
   const budgetChars = clampNum(Math.floor((pick.context - Math.max(pick.maxTokens || 0, pick.output || 0, 2000) - 2500) * 0.72), 1600, 48000);
   const trimmed = ctxMod.trimVars(varsRaw, order.filter((k) => !(k in extraVars)).concat(order.filter((k) => k in extraVars)), budgetChars, CAPS);
   Object.assign(trimmed, extraVars);
+  // 多语言：把项目创建/能力语言映射为写作语言指令（空则保持模板默认中文）
+  const lang = (project && (project.language || (project.workspace && project.workspace.source && project.workspace.source[0] && project.workspace.source[0].lang))) || '';
+  trimmed.langText = ctxMod.langInstruction ? ctxMod.langInstruction(lang) : '';
   const rendered = ctxMod.renderTemplate(tpl, trimmed);
   const messages = [
     { role: 'system', content: rendered.system },
@@ -894,6 +1094,13 @@ function pickVarsFor(project, def, args, exec) {
         { curRowText: exec.row ? ctxMod.fmtRow(exec.row) : '', chapterContent: (exec.row && exec.row.ch && exec.row.ch.content) || '' });
     case 'audit_book':
       return auditVars(project, args, ctx);
+    case 'content_analyze':
+    case 'content_imitate':
+    case 'content_continue':
+    case 'content_rewrite':
+    case 'doc_resolution':
+    case 'email_cold':
+      return ctxMod.fmtWorkspaceVars(project);
     default:
       return {};
   }
@@ -954,6 +1161,30 @@ function applyResult(projectId, resultId, extra) {
   entry.applied = true;
   return { applied: summary, project };
 }
+
+// ---------------- 能力注册（内置能力 = ACTIONS 的子集） ----------------
+const capsMod = require('./capabilities');
+function registerBuiltInCaps() {
+  const keys = Object.keys(ACTIONS).filter((k) => !k.startsWith('_'));
+  const stageOf = (k) => ACTIONS[k].stage || 'studio';
+  const byCap = {};
+  for (const k of keys) {
+    const s = stageOf(k);
+    const cap = (byCap[s] = byCap[s] || { id: s, name: s, actions: [] });
+    cap.actions.push({ key: k, label: ACTIONS[k].label, about: ACTIONS[k].about || '', kind: ACTIONS[k].kind });
+  }
+  const meta = {
+    novel: { id: 'novel', name: '小说创作', label: '小说创作', kind: 'studio', builtin: true },
+    content: { id: 'content', name: '文本内容', label: '内容仿写/续写/改写', kind: 'text', builtin: true },
+    doc: { id: 'doc', name: '公文体例', label: '公文·安理会决议仿写', kind: 'doc', builtin: true },
+    email: { id: 'email', name: '学术沟通', label: '学术套磁邮件', kind: 'email', builtin: true },
+  };
+  for (const [stageId, capActions] of Object.entries(byCap)) {
+    const m = meta[stageId] || { id: stageId, name: stageId, label: stageId, kind: stageId, builtin: true };
+    capsMod.registerCapability({ ...m, actions: capActions.actions });
+  }
+}
+registerBuiltInCaps();
 
 module.exports = {
   ACTIONS, listActions, generate, applyResult, normalizeRows, normalizeChar, cacheResult,

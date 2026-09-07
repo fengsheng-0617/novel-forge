@@ -5,7 +5,7 @@
 const APP = {
   name: '织文 NovelForge',
   nameEn: 'NovelForge',
-  version: '0.1.0',
+  version: '0.4.0',
   tagline: '从灵感火花到成书连载 —— 每一步都由你把关的 AI 小说工坊',
 };
 

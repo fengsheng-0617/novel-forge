@@ -2,6 +2,7 @@
 'use strict';
 import { h, clear, toast, debounce, confirmDialog } from '../ui.js';
 import { api } from '../api.js';
+import { t } from '../i18n.js';
 
 const KIND_LABEL = { openai: 'OpenAI 兼容', gemini: 'Gemini', mock: '本地模拟' };
 
@@ -19,9 +20,9 @@ export function mount(root, _project, ctx) {
     saver = debounce(saveAll, 700);
     root.append(
       h('div', { class: 'page-title' },
-        h('h1', {}, '⚙ 设置'),
-        h('span', { class: 'sub' }, '自动保存 · 密钥只存在本机 data/settings.json')),
-      h('button', { class: 'btn ghost', onclick: () => { location.hash = '#/'; } }, '← 返回项目库'),
+        h('h1', {}, '⚙ ' + t('settings.title')),
+        h('span', { class: 'sub' }, t('settings.sub'))),
+      h('button', { class: 'btn ghost', onclick: () => { location.hash = '#/'; } }, '← ' + t('settings.back')),
       providersCard(),
       defaultsCard(),
       templatesCard(),
@@ -48,19 +49,19 @@ export function mount(root, _project, ctx) {
   // ---------- 厂商 ----------
   function providersCard() {
     const box = h('div', { class: 'card' });
-    box.append(h('h3', {}, '模型厂商', h('span', { class: 'hint' }, `${S.providers.length} 家 · 未启用厂商不会出现在引擎列表中`)));
+    box.append(h('h3', {}, t('settings.providers'), h('span', { class: 'hint' }, t('settings.providersHint', { n: S.providers.length }))));
     for (const prov of S.providers) {
       box.append(providerRow(prov, () => render()));
     }
     box.append(h('div', { class: 'btn-row' },
       h('button', { class: 'btn', onclick: () => {
         S.providers.push({
-          id: 'custom_' + Math.random().toString(36).slice(2, 8), name: '自定义厂商', kind: 'openai',
+          id: 'custom_' + Math.random().toString(36).slice(2, 8), name: t('settings.customName'), kind: 'openai',
           baseURL: 'https://api.example.com/v1', apiKey: '', defaultModel: '', models: [],
-          enabled: true, builtin: false, note: '自定义 OpenAI 兼容端点',
+          enabled: true, builtin: false, note: t('settings.customNote'),
         });
         saver.flush(); render();
-      } }, '＋ 自定义 OpenAI 兼容厂商')));
+      } }, t('settings.addCustom'))));
     return box;
   }
 
@@ -154,7 +155,7 @@ export function mount(root, _project, ctx) {
     const d = S.defaults = S.defaults || {};
     const box = h('div', { class: 'card' });
     const enabled = S.providers.filter((p) => p.enabled !== false && p.models && p.models.length);
-    box.append(h('h3', {}, '默认引擎与生成参数', h('span', { class: 'hint' }, '所有 AI 动作的兜底设置；可在生成面板临时切换')));
+    box.append(h('h3', {}, t('settings.defaults'), h('span', { class: 'hint' }, t('settings.defaultsHint'))));
     const provSel = h('select', { style: 'width:auto', onchange: (e) => { d.providerId = e.target.value; saver(); } },
       ...enabled.map((p) => h('option', { value: p.id, selected: d.providerId === p.id || undefined }, p.name)));
     const modelSel = h('select', { style: 'flex:1;min-width:180px', onchange: (e) => { d.model = e.target.value; saver(); } });
@@ -186,18 +187,18 @@ export function mount(root, _project, ctx) {
   // ---------- 提示词模板 ----------
   function templatesCard() {
     const box = h('div', { class: 'card' });
-    box.append(h('h3', {}, '提示词模板库', h('span', { class: 'hint' }, `${S.templates.length} 套 · 占位符 {{变量}} 在生成时自动替换；改动影响后续所有 AI 动作`)));
+    box.append(h('h3', {}, t('settings.templates'), h('span', { class: 'hint' }, t('settings.templatesHint', { n: S.templates.length }))));
     box.append(h('div', { class: 'btn-row', style: 'margin-bottom:6px' },
       h('button', { class: 'btn sm ghost', onclick: async () => {
-        const yes = await confirmDialog('重置全部模板', '把所有模板恢复为内置默认（丢弃你的修改）。', { okText: '重置', danger: true });
+        const yes = await confirmDialog(t('settings.tplResetTitle'), t('settings.tplResetMsg'), { okText: t('settings.tplResetOk'), danger: true });
         if (!yes) return;
         try {
           const r = await api.resetTemplates();
           S.templates = r.templates;
           render();
-          toast('模板已重置为内置默认', 'ok');
-        } catch (e) { toast('重置失败：' + e.message, 'err', 5000); }
-      } }, '↺ 全部重置为内置默认')));
+          toast(t('settings.tplResetDone'), 'ok');
+        } catch (e) { toast(t('settings.tplResetFail', { msg: e.message }), 'err', 5000); }
+      } }, t('settings.tplReset'))));
     const STAGE_ORDER = ['idea', 'bible', 'characters', 'outline', 'writing', 'audit'];
     const groups = new Map();
     for (const t of S.templates) {
@@ -232,13 +233,13 @@ export function mount(root, _project, ctx) {
   function pipelineCard() {
     const pl = S.pipeline = S.pipeline || {};
     const box = h('div', { class: 'card' });
-    box.append(h('h3', {}, '无人值守流水线参数'));
+    box.append(h('h3', {}, t('settings.pipeline')));
     const sw = (key, label, hint) => h('label', { class: 'field', style: 'display:flex;gap:10px;align-items:center' },
       h('input', { type: 'checkbox', checked: !!pl[key], onchange: (e) => { pl[key] = e.target.checked; saver(); } }),
       h('span', {}, h('b', {}, label), h('div', { class: 'small faint' }, hint)));
-    box.append(sw('autoSummary', '每章后自动归档记忆（摘要+事实）', '写完一章立即为其生成连续性记忆条目'),
-      sw('autoContinuity', '连载时自动推进伏笔状态', '记忆条目中的线索状态会随归档自动更新（已并入归档动作）'),
-      sw('continueOnError', '某一步失败时跳过并继续', '默认遇错即停，便于人工处理'));
+    box.append(sw('autoSummary', t('settings.pAutoSummary'), t('settings.pAutoSummaryHint')),
+      sw('autoContinuity', t('settings.pAutoContinuity'), t('settings.pAutoContinuityHint')),
+      sw('continueOnError', t('settings.pContinueOnError'), t('settings.pContinueOnErrorHint')));
     return box;
   }
 }

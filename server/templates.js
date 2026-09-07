@@ -3,7 +3,7 @@
 // 可在 设置→模板管理 中查看/编辑；模板占位符 {{varName}}，渲染时缺失变量替换为空串。
 // 输出规范（JSON 纯净 / 正文纯净）在导出时自动追加，用户编辑模板同样生效。
 
-const STAGE_LABEL = { idea: '点子', bible: '设定', characters: '人物', outline: '大纲', writing: '写作', audit: '审校' };
+const STAGE_LABEL = { idea: '点子', bible: '设定', characters: '人物', outline: '大纲', writing: '写作', audit: '审校', content: '内容', doc: '公文', email: '邮件' };
 
 const JSON_RULES = `【输出格式（硬性要求）】
 - 只输出一个合法的 JSON（对象或数组），不要 Markdown 代码块、不要三个反引号、不要任何解释或前后缀文字。
@@ -13,7 +13,24 @@ const JSON_RULES = `【输出格式（硬性要求）】
 const PROSE_RULES = `【输出格式（硬性要求）】
 - 只输出作品正文本身：不要任何"以下是…/这是为您…/好的…"之类的说明语，不要章节标题行，不要 Markdown 标题符号与加粗。
 - 中文小说排版：自然段落之间用空行分隔。
-- 如风格指南要求时间地点斜体行（*…*），按风格指南执行。`;
+- 如风格指南要求时间地点斜体行（*…*），按风格指南执行。
+{{langText}}`;
+
+const LANG_TEXT = {
+  zh: '【语言要求】用简体中文写作。',
+  en: '【语言要求】用简体中文写作。若用户指定语言，按指定语言写作。',
+  'en-US': '【Language】Write in English.',
+  enUS: '【Language】Write in English.',
+  fr: '【Langue】Écrivez en français.',
+  ru: '【Язык】Пишите на русском.',
+  es: '【Idioma】Escriba en español.',
+  pt: '【Idioma】Escreva em português.',
+};
+function langInstruction(lang) {
+  const k = String(lang || '');
+  if (!k) return '';
+  return '\n' + (LANG_TEXT[k] || `【语言要求】请用 ${k} 写作。`);
+}
 
 const RAW = [
   // ============ 点子阶段 ============
@@ -455,6 +472,131 @@ vol/no 从接续处顺延编号。`,
 }
 没有问题的章节不输出条目；items 可以为空数组 []。`,
   },
+
+  // ============ 能力工作台：内容仿写/续写/改写 ============
+  {
+    key: 't_content_analyze', stage: 'content', label: '内容 · 分析原文',
+    about: '分析上传/粘贴的源文本，输出题材/文风/结构/人物/主题的结构化判定，供后续仿写/续写/改写做锚点。',
+    vars: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText'],
+    system: `你是文本风格分析师，擅长把任意文本（小说/公文/报道/邮件/科普等）拆解成可复用的写作配方。只依据给出的源文本与少量上下文作判断；不确定的字段用合理推断并保持克制，不要臆造不存在的人物与信息。`,
+    user: `请分析以下源文本。
+
+【能力类型】{{capKind}}
+【标题】{{capTitle}}
+【源文本原文】
+==========
+{{sourceText}}
+==========
+【源语言】{{sourceLang}}
+【补充参数】{{paramsText}}
+【已有输出参考】{{outputsText}}
+
+输出 JSON，字段：
+{
+  "genre": "题材/文本类型判定（如 悬疑小说、安理会决议、学术套磁信、科技报道…）",
+  "style": "文风关键词与句式特征（80字内）",
+  "tone": "整体基调（如 冷峻/克制/热情/正式/口语）",
+  "structure": ["结构/段落功能（如 总分总、序言+条款、正文→落款）"],
+  "pov": "人称与视角（如 第三人称限知、无/正式公文体）",
+  "characters": ["出现的人物/称谓/机构（如 沈既明、安理会、S/REF/2024 编号）"],
+  "themes": ["主题/核心信息/诉求"],
+  "summary": "不超过 200 字概括原文内容与脉络",
+  "language": "源文本所用语言（如 中文、English）"
+}`,
+  },
+  {
+    key: 't_content_imitate', stage: 'content', label: '内容 · 仿写',
+    about: '严格模仿源文本的文风与结构，写一段同风格的新内容（主题/情节可替换）。',
+    vars: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText'],
+    system: `你是文体临摹高手。任务：以源文本为唯一风格与结构范本，写一段全新的内容——句式、节奏、叙事腔调、段落功能、甚至人物命名的气质都要贴近范本；但情节/主题/信息不得照抄，必须给出新东西。若用户指令要求换主题或场景，按指令执行但保持文风统一。`,
+    user: `请模仿下面源文本的文体，写新内容。
+
+【范本标题】{{capTitle}}
+【范本（不可照抄，仅临摹气质）】
+==========
+{{sourceText}}
+==========
+【源语言】{{sourceLang}}
+【补充参数】{{paramsText}}
+【已有输出参考（避免重复）】{{outputsText}}
+【额外要求】{{extraNote}}
+
+只输出仿写正文本身，不写标题与说明。`,
+  },
+  {
+    key: 't_content_continue', stage: 'content', label: '内容 · 续写',
+    about: '从源文本末尾无缝接延续写，保留原文，结果追加在源文本之后。',
+    vars: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText'],
+    system: `你是续写专家。必须从给定文本最后一句的语感、场景与情绪无缝接续，不得重新铺陈、不得总结前文、不得复述刚写过的句子；情节/论述必须继续前进（新动作/新信息/新论证），文风与已写部分保持一致。`,
+    user: `请续写下面的文本（保留其中已有内容，只在末尾接着写）。
+
+【标题】{{capTitle}}
+【已有内容】
+==========
+{{sourceText}}
+==========
+【源语言】{{sourceLang}}
+【补充参数】{{paramsText}}
+【额外要求】{{extraNote}}
+
+只输出续写的新内容本身，不要重复已写部分，不要额外说明。`,
+  },
+  {
+    key: 't_content_rewrite', stage: 'content', label: '内容 · 改写',
+    about: '按指令改写源文本（换风格/换主角/压缩/扩写/改语言等），输出可直接替换的完整新文本。',
+    vars: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText'],
+    system: `你是文字编辑，负责对整段文本做改写。保留原文的完整信息与关键事实，只按指令调整风格/人称/详略/语言；不擅自删掉必要信息，不新增与原文冲突的内容。`,
+    user: `请改写下面的源文本。
+
+【标题】{{capTitle}}
+【源文本】
+==========
+{{sourceText}}
+==========
+【源语言】{{sourceLang}}
+【改写要求】（如：改得更正式 / 改用第一人称 / 压缩到一半 / 翻译成英文）{{extraNote}}
+【补充参数】{{paramsText}}
+
+只输出改写后的完整新文本，不要说明。`,
+  },
+
+  // ============ 能力：联合国安理会决议仿写 ============
+  {
+    key: 't_doc_resolution', stage: 'doc', label: '公文 · 安理会决议仿写',
+    about: '仿照联合国安理会决议的体例，按议题生成一份结构完整的决议草案。',
+    vars: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText'],
+    system: `你是联合国文件起草专家。严格遵循安全理事会决议的正式体例：标题行（含 S/RES/编号与日期）、序言部分（以"安全理事会"开头，用"回顾/重申/注意到/深感关切"等惯用起首，逐条阐述背景与依据）、编号执行条款（每段以"决定/请/要求/敦促/重申"等强动词开头，逐条列出行动），结束语与表决/主送信息。语言须庄重、克制、明确，避免新闻化表述。`,
+    user: `请按联合国安理会决议体例，撰写一份决议草案。
+
+【决议主题/起草背景基调】{{capTitle}}
+【相关背景与要求（可为空）】
+==========
+{{sourceText}}
+==========
+【补充参数】{{paramsText}}
+【额外要求】{{extraNote}}
+
+只输出决议正文（可从标题行开始），不要解释过程。`,
+  },
+
+  // ============ 能力：学术套磁邮件编辑 ============
+  {
+    key: 't_email_cold', stage: 'email', label: '邮件 · 学术套磁编辑',
+    about: '撰写或润色一封学术套磁邮件（申请博士/访学/合作），兼顾礼貌、信息量与得体。',
+    vars: ['capKind', 'capTitle', 'sourceText', 'sourceLang', 'paramsText', 'outputsText'],
+    system: `你是学术沟通顾问，擅长写得体、克制、有信息量的套磁邮件（cold email）。要点：开头称呼得体并说明来信缘由；用一两条具体且真实的亮点（论文/项目/研究方向）建立关联；明确、低负担地提出请求（如希望进一步了解、是否可申请）；正文简短、语气诚恳不卑微；结尾礼貌并附上署名与联系方式。避免模板化套话与过度吹捧。`,
+    user: `请撰写/润色一封学术套磁邮件。
+
+【对象与场景】{{capTitle}}
+【草稿或要点（可为空）】
+==========
+{{sourceText}}
+==========
+【补充参数】{{paramsText}}
+【额外要求】{{extraNote}}
+
+只输出邮件正文（含称呼与署名），不要多余说明。`,
+  },
 ];
 
 const TYPE_MAP = {
@@ -463,6 +605,8 @@ const TYPE_MAP = {
   t_outline_generate: 'json', t_outline_extend: 'json', t_outline_refine: 'json',
   t_chapter_write: 'prose', t_chapter_continue: 'prose', t_chapter_rewrite: 'prose', t_chapter_polish: 'prose',
   t_excerpt_fix: 'prose', t_chapter_summary: 'json', t_audit_book: 'json',
+  t_content_analyze: 'json', t_content_imitate: 'prose', t_content_continue: 'prose', t_content_rewrite: 'prose',
+  t_doc_resolution: 'prose', t_email_cold: 'prose',
 };
 
 const TEMPLATES = RAW.map((t) => {
