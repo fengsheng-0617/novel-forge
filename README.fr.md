@@ -6,7 +6,7 @@
 
 ---
 
-Outil local de création IA vaste et entièrement personnalisable qui réunit **l'écriture de romans** et l'**imitation/suite/réécriture de contenu, la rédaction de résolution du Conseil de sécurité, l'email académique de prise de contact** au sein d'un cadre de capacités unique, tout en prenant en charge **l'écriture multilingue**. La chaîne de production de romans : **idées d'inspiration → contexte du monde → personnages → plan de chapitres → texte des chapitres**, et chaque production IA peut être **prévisualisée avant intégration, librement modifiée, régénérée, affinée ponctuellement et annulée dans son ensemble (undo)** ; elle prend en charge les interfaces compatibles OpenAI (y compris les fournisseurs nationaux), Gemini, Grok/xAI ; elle intègre un **moteur de simulation hors ligne** et un roman d'exemple — **aucune clé API n'est requise pour expérimenter l'intégralité des fonctionnalités**.
+Outil local de création IA vaste et entièrement personnalisable qui réunit **l'écriture de romans** et l'**imitation/suite/réécriture de contenu, la rédaction de résolution du Conseil de sécurité, l'email académique de prise de contact** au sein d'un cadre de capacités unique, tout en prenant en charge **l'écriture multilingue**. La chaîne de production de romans : **idées d'inspiration → route narrative → contexte du monde → personnages → plan de chapitres → texte des chapitres**, et chaque production IA peut être **prévisualisée avant intégration, librement modifiée, régénérée, affinée ponctuellement et annulée dans son ensemble (undo)** ; elle prend en charge les interfaces compatibles OpenAI (y compris les fournisseurs nationaux), Gemini, Grok/xAI ; elle intègre un **moteur de simulation hors ligne** et un roman d'exemple — **aucune clé API n'est requise pour expérimenter l'intégralité des fonctionnalités**.
 
 Zéro dépendance tierce (bibliothèque standard Node.js pure + navigateur natif), toutes les données sont stockées sur la machine locale.
 
@@ -39,23 +39,31 @@ novel-ctl.bat start 7400   rem  Peut spécifier un port ; sinon lit NOVEL_PORT /
 ```
 
 Au premier démarrage, les opérations suivantes sont effectuées automatiquement :
-1. écriture des paramètres par défaut (12 préréglages de fournisseurs + 18 modèles de prompt) ;
+1. écriture des paramètres par défaut (12 préréglages de fournisseurs + 25 modèles de prompt) ;
 2. création du projet d'exemple intégré《示例 · 雾港来信》(La Lettre du port de brume) (mystère-fantastique : bibliothèque de contexte / 6 fiches de personnages / 2 volumes et 10 chapitres de plan / 2 chapitres de texte d'exemple / archives de continuité) ;
 3. moteur par défaut = moteur de simulation hors ligne → ouvrez « Paramètres → Moteur par défaut » pour le remplacer par votre véritable modèle.
 
 ---
 
-## Chaîne de création (six phases + export)
+## Chaîne de création (sept phases + export)
 
 | Phase | Fonction | Capacité clé |
 |---|---|---|
 | ① Idées d'inspiration | titre / résumé en une phrase / contexte / conflit / ton | IA brainstorming (8 candidats, adoption au cas par cas), approfondissement en un clic en document de projet |
-| ② Contexte du monde | vue d'ensemble / règles immuables / sections de contexte / glossaire | l'IA génère des blocs entiers, compléments incrémentaux, affinement par section ; les règles immuables sont injectées à chaque écriture |
-| ③ Personnages | fiches de personnages tous champs | génération de groupe / ajout / affinement IA par fiche / **calibrage de cohérence de tout le groupe** (âge, relations, validation croisée de la chronologie) |
-| ④ Plan de chapitres | volumes, chapitre par chapitre : objectif + battements + apparitions + point de vue + nombre de mots | plan IA du roman complet (arc des volumes), ajout de N chapitres, affinement d'un chapitre, ajout manuel / tri / changement de volume / réorganisation |
-| ⑤ Écriture des chapitres | éditeur de texte | rédaction en streaming / suite / réécriture complète / polissage général / réécriture locale d'un passage sélectionné ; sauvegarde automatique, compteur de mots en temps réel ; **écriture en série sans surveillance** (termine automatiquement tous les chapitres restants selon le plan) |
-| ⑥ Révision de continuité | archives de mémoire + vue d'ensemble des fils narratifs + référentiel de style + revue complète | chaque chapitre est automatiquement archivé (« résumé + faits + état des fils narratifs ») et injecté dans l'écriture suivante ; relecture finale de niveau éditorial IA (logique / chronologie / conflits de contexte / OOC / style / fautes de langue), rapport conservé sans polluer le texte |
-| Export | téléchargement en un clic | `book.md` livre achevé / `manifest.md` brouillon de création complet / `book.txt` texte brut / `backup.json` sauvegarde du projet |
+| ② Route narrative (plan d'ensemble) | 2 à 5 candidats : plan d'ensemble / itinéraire par étapes / escalade du conflit principal / direction de fin / compromis et risques | l'IA génère les candidats + **sélection humaine** (par numéro / route personnalisée / adoption de la recommandation IA) ; **le plan ne s'y conforme strictement qu'après ce choix** — c'est l'étape clé qui évite un « plan décousu » |
+| ③ Contexte du monde | vue d'ensemble / règles immuables / sections de contexte / glossaire | l'IA génère des blocs entiers, compléments incrémentaux, affinement par section ; les règles immuables sont injectées à chaque écriture |
+| ④ Personnages | fiches de personnages tous champs | génération de groupe / ajout / affinement IA par fiche / **calibrage de cohérence de tout le groupe** (âge, relations, validation croisée de la chronologie) |
+| ⑤ Plan de chapitres | volumes, chapitre par chapitre : objectif + battements + apparitions + point de vue + nombre de mots | plan IA du roman complet (arc des volumes, avec la route sélectionnée injectée), ajout de N chapitres, affinement d'un chapitre, ajout manuel / tri / changement de volume / réorganisation |
+| ⑥ Écriture des chapitres | éditeur de texte | rédaction en streaming / suite / réécriture complète / polissage général / réécriture locale d'un passage sélectionné ; sauvegarde automatique, compteur de mots en temps réel ; **écriture en série sans surveillance** (termine automatiquement tous les chapitres restants selon le plan) |
+| ⑦ Révision de continuité | archives de mémoire + vue d'ensemble des fils narratifs + référentiel de style + revue complète | chaque chapitre est automatiquement archivé (« résumé + faits + état des fils narratifs ») et injecté dans l'écriture suivante ; relecture finale de niveau éditorial IA (logique / chronologie / conflits de contexte / OOC / style / fautes de langue), rapport conservé sans polluer le texte |
+| Export | téléchargement en un clic | `book.md` livre achevé / `manuscript.md` brouillon de création complet (contient la route narrative) / `book.txt` texte brut / `backup.json` sauvegarde du projet |
+
+> **Pourquoi la route narrative est obligatoire** : sans contrainte de route, le modèle a tendance à hésiter sur le thème,
+> la manière de faire monter le conflit et la direction de la fin, et le plan produit perd son cap d'un bout à l'autre.
+> Cet outil fait donc de « route narrative + plan d'ensemble » un **préalable** du plan — même une idée d'un seul paragraphe
+> doit d'abord donner plusieurs routes au choix. Le « tout automatique en un clic » sans surveillance effectue lui aussi
+> cette étape en premier et prend la route recommandée par l'IA pour fil conducteur (en présence d'une personne, il est
+> conseillé de choisir manuellement).
 
 Disponible en continu : **« Annuler »** dans la barre supérieure (les applications IA et les modifications structurelles peuvent être annulées sur tout le projet, 60 pas), la progression du pipeline à gauche, le « journal d'exécution » en bas à droite, les « paramètres » en haut à droite.
 
@@ -83,7 +91,7 @@ Ouvrez **⚙ Paramètres** :
 
 ## Modèles de prompt (personnalisables)
 
-Paramètres → **Bibliothèque de modèles de prompt** : 18 modèles groupés par phase, prompts System/User éditables en ligne (les espaces réservés `{{ideaText}}`, `{{bibleText}}`, `{{charsText}}`, `{{curRowText}}`, `{{contText}}`, etc. sont injectés automatiquement par le système), toute modification s'applique immédiatement à toutes les générations suivantes ; « tout réinitialiser aux valeurs par défaut intégrées » en un clic. Les spécifications de sortie des actions de type JSON (JSON pur, anti-blocs de code) et les règles de mise en page des actions de type texte (texte pur, interdiction des remarques explicatives) sont ajoutées automatiquement par le système.
+Paramètres → **Bibliothèque de modèles de prompt** : 25 modèles groupés par phase, prompts System/User éditables en ligne (les espaces réservés `{{ideaText}}`, `{{bibleText}}`, `{{charsText}}`, `{{curRowText}}`, `{{contText}}`, etc. sont injectés automatiquement par le système), toute modification s'applique immédiatement à toutes les générations suivantes ; « tout réinitialiser aux valeurs par défaut intégrées » en un clic. Les spécifications de sortie des actions de type JSON (JSON pur, anti-blocs de code) et les règles de mise en page des actions de type texte (texte pur, interdiction des remarques explicatives) sont ajoutées automatiquement par le système.
 
 ---
 
@@ -106,9 +114,9 @@ novel-forge/
 │  ├─ api.js                      # Routes REST/SSE
 │  ├─ store.js                    # Stockage des projets / opérations sur les collections / annulation
 │  ├─ llm.js                      # Passerelle LLM unifiée (compatible OpenAI/Gemini/simulation)
-│  ├─ templates.js                # 18 modèles de prompt intégrés
+│  ├─ templates.js                # 25 modèles de prompt intégrés
 │  ├─ context.js                  # Assemblage du contexte de projet et découpage du budget
-│  ├─ actions.js                  # 18 actions de génération (assemblage/analyse/application)
+│  ├─ actions.js                  # 25 actions de génération (19 pour le roman + 6 pour les capacités)
 │  ├─ pipeline.js                 # Pipeline sans surveillance
 │  ├─ export.js                   # Export livre/brouillon/TXT/JSON
 │  ├─ seedDemo.js / defaults.js / settings.js / events.js / util.js
@@ -121,7 +129,7 @@ novel-forge/
 
 ## Relation avec la version plugin DSH (dépôts séparés · source unique du moteur)
 
-Ce dépôt est **la seule source de vérité du moteur d'écriture de romans**, avec un positionnement dédié : il fait uniquement le travail de  idée → contexte → personnages → plan → texte en tant qu'outil de création.
+Ce dépôt est **la seule source de vérité du moteur d'écriture de romans**, avec un positionnement dédié : il fait uniquement le travail de  idée → **route narrative** → contexte → personnages → plan → texte en tant qu'outil de création.
 La version plugin DSH (`dsh-novel-forge`, dépôt/répertoire indépendant `../novel-forge-plugin`) gère l'orchestration des services côté écosystème harness et les outils de session `novel_forge_*` ; elle **embarque une copie en miroir de ce moteur** (`app/server`, `app/public`),
 synchronisée de façon unidirectionnelle par un outil de miroir afin d'éviter toute divergence entre les deux :
 
@@ -139,8 +147,9 @@ le dépôt du plugin n'écrit que du code côté harness (service index.js / too
 ```bash
 node scripts/check-syntax.js      # Syntaxe de tous les JS (serveur + ESM navigateur)
 node scripts/check-imports.js     # Intégrité des imports de modules front-end
+node scripts/test-route.js        # Étape de route narrative (modèle/action/injection de {{routeText}}, 17 éléments, sans service)
 node scripts/test-api.js          # Smoke REST/stockage/annulation      (26 éléments)
-node scripts/test-gen.js          # Chaîne complète du moteur de génération          (35 éléments)
+node scripts/test-gen.js          # Chaîne complète du moteur de génération          (43 éléments, guidage de route inclus)
 node scripts/test-pipeline.js     # Pipeline + export             (21 éléments)
 node scripts/acceptance.js        # Recette du flux complet (équivalent curl du flux complet, 20 éléments)
 node scripts/verify-ui.js         # Rendu des 9 routes par un vrai moteur Edge headless

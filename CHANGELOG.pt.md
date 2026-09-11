@@ -7,6 +7,29 @@ Este changelog registra as mudanças notáveis do NovelForge seguindo [Keep a Ch
 
 Nota de histórico: as versões anteriores à v0.3.0 são os primeiros lançamentos consolidados (pipeline completo ideia→mundo→personagens→esboço→prosa + gateway multiprovedor + pipeline sem supervisão); o registro começa na v0.3.0.
 
+## [0.4.1] - 2026-09-11
+
+### Added
+- **Etapa de rota narrativa (plano geral do esboço)**: nova etapa obrigatória de orientação entre o «projeto» e o «esboço», que evita que o esboço se disperse.
+  - Novo modelo `t_route_plan` (rota · rota narrativa e plano geral do esboço): produz 2~5 rotas candidatas distintas entre si, cada uma com
+    o plano geral do esboço (estrutura global/ritmo/ponto de vista), a rota por etapas (3~5 etapas, com os intervalos de capítulos e a virada ao fim de cada etapa), o caminho de escalada do conflito principal, a direção do desfecho, os indícios (foreshadowing) recorrentes, os trade-offs e riscos, além de indicar a opção recomendada pela IA.
+  - Nova ação `route_plan` (stage=idea); o projeto ganhou o documento `routes` (`{candidates, selected}`), que pode ser lido e gravado em `/api/projects/:id/doc` com `pointer=routes`.
+  - **Variável `{{routeText}}`**: `t_outline_generate` e `t_outline_extend` passaram a declará-la e a exigir «seguir a rota narrativa»;
+    já selecionada → injeta a rota escolhida pelo usuário; apenas candidatas geradas sem seleção → injeta a rota recomendada pela IA marcada como «ainda não confirmada pelo usuário»; nenhuma das duas → injeta um lembrete para executar a orientação.
+- **Pipeline sem supervisão**: o modo `full` insere automaticamente uma etapa `route_plan` antes de gerar o esboço, e o esboço tem a rota recomendada pela IA como diretriz.
+- **Exportação e listagens**: o rascunho `manuscript` ganhou o bloco «rota narrativa e plano geral do esboço» (texto completo da rota selecionada + demais candidatas); a lista de projetos retorna o status `route`; o status do projeto ganhou «rota definida».
+- **Interface web**: a página de ideias ganhou a ação «① rota narrativa · plano geral do esboço» e o cartão de rotas candidatas (selecionar / adotar a recomendação da IA / gerar outra leva); a página do esboço ganhou uma faixa de aviso de rota no topo (se nada estiver selecionado, lembra de ir primeiro à orientação).
+
+### Changed
+- Total de modelos 24 → 25; total de ações do motor 18 → 19 (`route_plan`).
+- `context.js` ganhou `fmtRoute / fmtRouteOne`, e `buildVars` passou a suportar a opção `route`; a lista de permissões de ponteiros de documento do `store.js` passou a incluir `routes`.
+- Versão 0.4.0 → 0.4.1.
+
+### Verify
+- Nova suíte de testes em nível de módulo `scripts/test-route.js` (17/17): registro de modelo/ação, normalização das candidatas e semântica de gravação, os três estados de injeção do `routeText` e renderização sem placeholders residuais.
+- Autoteste completo todo verde: motor 43/43 (incluindo 6 itens da etapa de rota) · API 26/26 · pipeline 21/21 · aceitação 20/20 · renderização 9/9 · interação 11/11 · sintaxe 46/46 · importação 15/15.
+- Imagem do motor `engine-mirror verify`: origem/plugins 32 vs 32 com desvio zero.
+
 ## [0.4.0] - 2026-09-07
 
 ### Added
@@ -45,5 +68,6 @@ Nota de histórico: as versões anteriores à v0.3.0 são os primeiros lançamen
 ### Fixed
 - (A primeira versão não possui registro de defeitos pré-existentes; esta versão é o ponto inicial rastreável.)
 
+[0.4.1]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.4.1
 [0.4.0]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.4.0
 [0.3.0]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.3.0

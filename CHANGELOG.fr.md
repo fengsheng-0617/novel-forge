@@ -7,6 +7,27 @@ Ce changelog consigne les changements notables de NovelForge, selon [Keep a Chan
 
 > Note historique : les versions antérieures à la v0.3.0 sont les premières versions façonnées (pipeline complet idée→cadre→personnages→plan→prose + passerelle multi-fournisseurs + pipeline sans surveillance) ; l'enregistrement débute à la v0.3.0.
 
+## [0.4.1] - 2026-09-11
+
+### Added
+- **Étape de route narrative (plan d'ensemble)** : nouvelle étape de guidage obligatoire entre le « projet » et le « plan », qui évite les plans décousus.
+  - Nouveau modèle `t_route_plan` (route · route narrative et plan d'ensemble) : produit 2 à 5 itinéraires candidats réellement distincts, chacun avec un plan d'ensemble (structure globale / rythme / point de vue), un itinéraire par étapes (3 à 5 étapes, avec plages de chapitres et tournant de fin d'étape), un chemin d'escalade du conflit principal, une direction de fin, des fils narratifs de bout en bout, des compromis et des risques, plus la proposition recommandée par l'IA.
+  - Nouvelle action `route_plan` (stage=idea) ; le projet gagne un document `routes` (`{candidates, selected}`), lisible et modifiable via `/api/projects/:id/doc` avec `pointer=routes`.
+  - **Variable `{{routeText}}`** : `t_outline_generate` et `t_outline_extend` la déclarent désormais et indiquent que le plan doit suivre la route narrative. Route sélectionnée → la route retenue par l'utilisateur est injectée ; candidats seuls, aucun choix → la route recommandée par l'IA est injectée et signalée comme non confirmée ; ni l'un ni l'autre → une invite à lancer l'étape de guidage.
+- **Pipeline sans surveillance** : le mode `full` insère automatiquement une étape `route_plan` avant de générer le plan, qui s'appuie alors sur la route recommandée par l'IA.
+- **Exports et listes** : le brouillon `manuscript` gagne une section « route narrative et plan d'ensemble » (route sélectionnée intégralement + les autres candidats) ; la liste des projets renvoie le statut `route` ; le statut du projet gagne « route fixée ».
+- **Interface web** : la page des idées gagne une action « ① route narrative · plan d'ensemble » et une carte des routes candidates (sélectionner / adopter la recommandation IA / régénérer les candidats) ; la page du plan gagne en haut un bandeau de route (qui rappelle d'aller d'abord au guidage si rien n'est sélectionné).
+
+### Changed
+- Nombre total de modèles 24 → 25 ; nombre total d'actions du moteur 18 → 19 (`route_plan`).
+- `context.js` gagne `fmtRoute / fmtRouteOne` et la prise en charge d'une option `route` dans `buildVars` ; `store.js` ajoute `routes` à la liste blanche des pointeurs de document.
+- Version 0.4.0 → 0.4.1.
+
+### Verify
+- Nouvelle suite au niveau module `scripts/test-route.js` (17/17) : enregistrement du modèle et de l'action, normalisation des candidats et sémantique de l'application, les trois états d'injection de `routeText`, rendu sans espace réservé résiduel.
+- Auto-tests complets tous au vert : moteur 43/43 (dont 6 cas sur l'étape de route) · API 26/26 · pipeline 21/21 · validation 20/20 · rendu 9/9 · interaction 11/11 · syntaxe 46/46 · import 15/15.
+- Image moteur `engine-mirror verify` : source/plugin 32 vs 32, zéro dérive.
+
 ## [0.4.0] - 2026-09-07
 
 ### Added
@@ -45,5 +66,6 @@ Ce changelog consigne les changements notables de NovelForge, selon [Keep a Chan
 ### Fixed
 - (Aucun défaut préexistant à signaler pour la première version ; cette version constitue le point de départ retraçable.)
 
+[0.4.1]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.4.1
 [0.4.0]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.4.0
 [0.3.0]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.3.0

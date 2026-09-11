@@ -6,7 +6,7 @@
 
 ---
 
-Herramienta de creación con IA local, grande y totalmente personalizable, que unifica bajo un marco de capacidades la **escritura de novelas** con la **imitación/continuación/reescritura de contenido, la redacción de resolución del Consejo de Seguridad y el correo académico de contacto**, y admite además la **escritura multilingüe**. El flujo de escritura de novelas: **idea inicial → ambientación del mundo → personajes → esquema de capítulos → texto de los capítulos**; cada resultado generado por IA puede **previsualizarse antes de guardarse, editarse libremente, regenerarse, afinarse por puntos concretos y revertirse por completo (deshacer)**. Admite la conexión con interfaces compatibles con OpenAI (incluidas las de distintos fabricantes nacionales), Gemini y Grok/xAI; incorpora un **motor de simulación sin conexión** y novelas de ejemplo, por lo que **no se necesita ninguna API Key para experimentar todas las funciones por completo**.
+Herramienta de creación con IA local, grande y totalmente personalizable, que unifica bajo un marco de capacidades la **escritura de novelas** con la **imitación/continuación/reescritura de contenido, la redacción de resolución del Consejo de Seguridad y el correo académico de contacto**, y admite además la **escritura multilingüe**. El flujo de escritura de novelas: **idea inicial → ruta narrativa (planteamiento del esquema) → ambientación del mundo → personajes → esquema de capítulos → texto de los capítulos**; cada resultado generado por IA puede **previsualizarse antes de guardarse, editarse libremente, regenerarse, afinarse por puntos concretos y revertirse por completo (deshacer)**. Admite la conexión con interfaces compatibles con OpenAI (incluidas las de distintos fabricantes nacionales), Gemini y Grok/xAI; incorpora un **motor de simulación sin conexión** y novelas de ejemplo, por lo que **no se necesita ninguna API Key para experimentar todas las funciones por completo**.
 
 Cero dependencias de terceros (solo la librería estándar pura de Node.js + el navegador nativo) y todos los datos se guardan en el equipo local.
 
@@ -39,23 +39,28 @@ novel-ctl.bat start 7400   rem permite especificar el puerto; o, sin puerto, lee
 ```
 
 En el primer arranque se realiza automáticamente:
-1. Se escriben los ajustes predeterminados (preajustes de 12 fabricantes + 18 plantillas de prompt);
+1. Se escriben los ajustes predeterminados (preajustes de 12 fabricantes + 25 plantillas de prompt);
 2. Se crea el proyecto de ejemplo integrado «Ejemplo · Carta del puerto de niebla» (misterio fantástico: biblioteca de ambientación / 6 fichas de personajes / esquema de 2 volúmenes y 10 capítulos / 2 capítulos de texto de ejemplo / archivo de continuidad);
 3. Motor predeterminado = motor de simulación sin conexión → abre «Configuración → Motor predeterminado» para cambiarlo a tu modelo real.
 
 ---
 
-## Flujo de creación (seis fases + exportación)
+## Flujo de creación (siete fases + exportación)
 
 | Fase | Qué se hace | Capacidades clave |
 |---|---|---|
 | ① Idea inicial | Título/una frase/contexto/conflicto/tono | Lluvia de ideas con IA (8 candidatos, se adoptan uno a uno), profundización en un clic hasta convertirlo en proyecto |
-| ② Ambientación del mundo | Resumen / reglas de hierro / secciones de ambientación / glosario | La IA genera el conjunto completo, ampliación incremental, refinamiento por secciones; las reglas de hierro se inyectan automáticamente en cada escritura |
-| ③ Personajes | Ficha de personaje con todos los campos | Generación de los personajes / añadir / refinamiento IA por ficha / **calibración de coherencia del conjunto** (verificación cruzada de edades, relaciones y línea temporal) |
-| ④ Esquema de capítulos | Volúmenes, objetivo+ritmo+apariciones+punto de vista+recuento por capítulo | Esquema completo con IA (arco de volumen), añadir N capítulos, refinamiento de un capítulo, añadir capítulos manualmente/ordenar/cambiar de volumen/reordenar |
-| ⑤ Escritura de capítulos | Editor de texto | Escritura en streaming/continuación/reescritura completa/pulido general/reescritura local de un pasaje seleccionado; autoguardado y recuento de palabras en tiempo real; **serialización automática sin supervisión** (escribe automáticamente todos los capítulos restantes según el esquema) |
-| ⑥ Revisión de continuidad | Archivo de memoria + resumen de presagios + base de estilo + revisión del texto completo | Cada capítulo se archiva automáticamente como «resumen+hechos+estado de los presagios» y se inyecta en la escritura posterior; revisión final a nivel de editor con IA (lógica/línea temporal/conflictos de ambientación/OOC/estilo/erratas); el informe se guarda sin contaminar el texto |
-| Exportación | Descarga en un clic | `book.md` libro final / `manuscript.md` borrador completo de la creación / `book.txt` texto sin formato / `backup.json` copia de seguridad del proyecto |
+| ② Ruta narrativa (planteamiento del esquema) | 2~5 candidatas: planteamiento general / ruta por etapas / escalada del conflicto principal / dirección del desenlace / sacrificios y riesgos | La IA genera las candidatas + **selección humana** (por número / ruta propia / adoptar la recomendación de la IA); **solo tras seleccionarla el esquema la seguirá estrictamente**; es el paso clave para evitar que «el esquema se disperse» |
+| ③ Ambientación del mundo | Resumen / reglas de hierro / secciones de ambientación / glosario | La IA genera el conjunto completo, ampliación incremental, refinamiento por secciones; las reglas de hierro se inyectan automáticamente en cada escritura |
+| ④ Personajes | Ficha de personaje con todos los campos | Generación de los personajes / añadir / refinamiento IA por ficha / **calibración de coherencia del conjunto** (verificación cruzada de edades, relaciones y línea temporal) |
+| ⑤ Esquema de capítulos | Volúmenes, objetivo+ritmo+apariciones+punto de vista+recuento por capítulo | Esquema completo con IA (arco de volumen, con la ruta seleccionada inyectada), añadir N capítulos, refinamiento de un capítulo, añadir capítulos manualmente/ordenar/cambiar de volumen/reordenar |
+| ⑥ Escritura de capítulos | Editor de texto | Escritura en streaming/continuación/reescritura completa/pulido general/reescritura local de un pasaje seleccionado; autoguardado y recuento de palabras en tiempo real; **serialización automática sin supervisión** (escribe automáticamente todos los capítulos restantes según el esquema) |
+| ⑦ Revisión de continuidad | Archivo de memoria + resumen de presagios + base de estilo + revisión del texto completo | Cada capítulo se archiva automáticamente como «resumen+hechos+estado de los presagios» y se inyecta en la escritura posterior; revisión final a nivel de editor con IA (lógica/línea temporal/conflictos de ambientación/OOC/estilo/erratas); el informe se guarda sin contaminar el texto |
+| Exportación | Descarga en un clic | `book.md` libro final / `manuscript.md` borrador completo de la creación (incluye la ruta narrativa) / `book.txt` texto sin formato / `backup.json` copia de seguridad del proyecto |
+
+> **Por qué la ruta es obligatoria**: sin una restricción de ruta, el modelo tiende a oscilar entre «el tema, la forma de escalar el conflicto y la dirección del desenlace», y el esquema resultante pierde el foco de una parte a otra.
+> Por eso esta herramienta convierte la «ruta narrativa (planteamiento del esquema)» en un **paso previo** del esquema: incluso una idea de un solo párrafo debe ofrecer primero varias rutas entre las que elegir.
+> La «automatización total en un clic» sin supervisión también ejecuta antes este paso y toma como guía la ruta recomendada por la IA (con una persona presente, se recomienda seleccionarla manualmente).
 
 Siempre disponible: **«Deshacer» en la barra superior** (los cambios aplicados por la IA y los estructurales pueden revertirse en todo el proyecto, 60 pasos), el progreso del flujo a la izquierda, los «registros de ejecución» abajo a la derecha y «Configuración» arriba a la derecha.
 
@@ -83,7 +88,7 @@ Abre **⚙ Configuración**:
 
 ## Plantillas de prompt (personalizables)
 
-Configuración → **Biblioteca de plantillas de prompt**: 18 plantillas agrupadas por fases, que pueden editarse en línea en los prompts de System/User (los marcadores de posición `{{ideaText}}`, `{{bibleText}}`, `{{charsText}}`, `{{curRowText}}`, `{{contText}}`, etc. los inyecta automáticamente el sistema); los cambios surten efecto de inmediato en todas las generaciones posteriores; se puede hacer «Restablecer todo a los valores integrados» en un clic. Las especificaciones de salida de las acciones tipo JSON (JSON puro, sin bloques de código) y las normas de maquetación de las acciones de texto (solo texto, sin notas explicativas) las añade automáticamente el sistema.
+Configuración → **Biblioteca de plantillas de prompt**: 25 plantillas agrupadas por fases, que pueden editarse en línea en los prompts de System/User (los marcadores de posición `{{ideaText}}`, `{{bibleText}}`, `{{charsText}}`, `{{curRowText}}`, `{{contText}}`, etc. los inyecta automáticamente el sistema); los cambios surten efecto de inmediato en todas las generaciones posteriores; se puede hacer «Restablecer todo a los valores integrados» en un clic. Las especificaciones de salida de las acciones tipo JSON (JSON puro, sin bloques de código) y las normas de maquetación de las acciones de texto (solo texto, sin notas explicativas) las añade automáticamente el sistema.
 
 ---
 
@@ -106,9 +111,9 @@ novel-forge/
 │  ├─ api.js                      # rutas REST/SSE
 │  ├─ store.js                    # almacenamiento de proyectos / operaciones de colección / deshacer
 │  ├─ llm.js                      # pasarela LLM unificada (compatible con OpenAI/Gemini/simulación)
-│  ├─ templates.js                # 18 plantillas de prompt integradas
+│  ├─ templates.js                # 25 plantillas de prompt integradas
 │  ├─ context.js                  # ensamblado del contexto del proyecto y recorte del presupuesto
-│  ├─ actions.js                  # 18 acciones de generación (ensamblado/análisis/aplicación)
+│  ├─ actions.js                  # 25 acciones de generación (19 de novela + 6 de capacidad)
 │  ├─ pipeline.js                 # flujo de serialización automática sin supervisión
 │  ├─ export.js                   # exportación de libro/borrador/TXT/JSON
 │  ├─ seedDemo.js / defaults.js / settings.js / events.js / util.js
@@ -121,7 +126,7 @@ novel-forge/
 
 ## Relación con la versión para el plugin de DSH (repositorio separado · fuente única del motor)
 
-Este repositorio es **la única fuente de verdad del motor de escritura de novelas**, con un propósito especializado: solo hace la herramienta de creación idea→ambientación→personajes→esquema→texto.
+Este repositorio es **la única fuente de verdad del motor de escritura de novelas**, con un propósito especializado: solo hace la herramienta de creación idea→**ruta narrativa**→ambientación→personajes→esquema→texto.
 La versión para el plugin de DSH (`dsh-novel-forge`, repositorio/directorio independiente `../novel-forge-plugin`) se encarga de la orquestación de servicios en el ecosistema del harness y de las herramientas de sesión `novel_forge_*`; **incorpora un espejo de este motor** (`app/server`, `app/public`)
 que se sincroniza unidireccionalmente con la herramienta de espejo para evitar que las dos copias diverjan:
 
@@ -139,8 +144,9 @@ el repositorio del plugin solo escribe código del lado del harness (servicio de
 ```bash
 node scripts/check-syntax.js      # toda la sintaxis JS (ESM del servidor + del navegador)
 node scripts/check-imports.js     # integridad de las importaciones de módulos del frontend
+node scripts/test-route.js        # etapa de ruta narrativa (plantilla/acción/inyección de {{routeText}}, 17 ítems, sin servidor)
 node scripts/test-api.js          # prueba de humo REST/almacenamiento/deshacer      (26 ítems)
-node scripts/test-gen.js          # cadena completa del motor de generación          (35 ítems)
+node scripts/test-gen.js          # cadena completa del motor de generación          (43 ítems, con la guía de ruta)
 node scripts/test-pipeline.js     # flujo de serialización + exportación             (21 ítems)
 node scripts/acceptance.js        # aceptación del flujo completo (equivalente a curl, 20 ítems)
 node scripts/verify-ui.js         # renderizado real de 9 rutas con el kernel headless de Edge
