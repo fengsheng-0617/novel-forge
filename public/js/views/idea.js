@@ -79,16 +79,65 @@ export function mount(root, project, ctx) {
   const colRight = h('div', {},
     h('div', { class: 'card' },
       h('h3', {}, '🤖 AI 动作'),
+      aiCard('① 故事路线 · 大纲思路（生成大纲前必做）', '给出 3 条互不相同的路线候选：整体结构/阶段路线/主线冲突/结局/取舍——选定后大纲会严格遵循它', 'route_plan', { count: 3 }, { onApplied: afterAi }),
       aiCard('头脑风暴 · 点子池', '无中生有：生成 8 个差异化候选点子（可逐条采纳）', 'idea_brainstorm', {}),
       aiCard('深化当前创意', '把当前创意卡扩写为完整立项书（覆盖创意字段）', 'idea_flesh', {}, { onApplied: afterAi })),
+    routesCard(),
     candidatesCard());
 
   const titleRow = h('div', { class: 'page-title' },
     h('h1', {}, '① 灵感点子'),
     h('span', { class: 'sub' }, '先有值得写的一颗种子：书名、一句话故事、故事背景与核心冲突。所有文字都能直接编辑，改动自动保存。'));
-  const descRow = h('div', { class: 'page-desc' }, '推荐路径：a) 已有想法 → 逐项填写或点「AI 深化当前创意」；b) 还没有想法 → 点「头脑风暴」生成 8 个点子，挑中后「采纳并深化」。');
+  const descRow = h('div', { class: 'page-desc' }, '推荐路径：a) 已有想法 → 逐项填写或点「AI 深化当前创意」；b) 还没有想法 → 点「头脑风暴」生成 8 个点子，挑中后「采纳并深化」。无论点子多少，进入大纲之前都要先产出并选定「故事路线 · 大纲思路」——这是防止大纲散乱的关键一步。');
 
   root.append(titleRow, descRow, h('div', { class: 'two-col', style: 'align-items:start' }, colLeft, colRight));
+
+  // ---- 故事路线（大纲思路）：候选 + 选定 ----
+  function routesCard() {
+    const routes = p.routes || { candidates: [], selected: null };
+    const list = Array.isArray(routes.candidates) ? routes.candidates : [];
+    const sel = routes.selected || null;
+    const box = h('div', { class: 'card' });
+    box.append(h('h3', {}, '故事路线（大纲思路）',
+      h('span', { class: 'hint' }, sel ? '✅ 已选定：' + (sel.name || '未命名') : (list.length ? '⚠ 尚未选定 · 生成大纲前必须选一条' : '生成大纲前必做'))));
+    if (!list.length) {
+      box.append(h('div', { class: 'empty small', style: 'padding:18px' }, '点上方「① 故事路线 · 大纲思路」生成 2~5 条互不相同的路线候选；选定后生成的大纲会严格遵循该路线，不再前后失焦。'));
+      return box;
+    }
+    for (const c of list) {
+      const isSel = !!(sel && sel.name === c.name);
+      const rows = [];
+      if (c.approach) rows.push(h('div', { class: 'small', style: 'margin:2px 0 6px' }, h('b', {}, '思路：'), c.approach));
+      const st = Array.isArray(c.structure) ? c.structure : [];
+      if (st.length) rows.push(h('div', { class: 'small muted', style: 'margin-bottom:6px' },
+        h('b', {}, '阶段：'), st.map((s) => `${s.phase || '阶段'}${s.span ? '（' + s.span + '）' : ''}${s.goal ? '·' + s.goal : ''}`).join('；')));
+      if (c.coreConflict) rows.push(h('div', { class: 'small' }, h('b', {}, '主线冲突：'), c.coreConflict));
+      if (c.ending) rows.push(h('div', { class: 'small' }, h('b', {}, '结局：'), c.ending));
+      if (c.risk) rows.push(h('div', { class: 'small muted' }, h('b', {}, '取舍：'), c.risk));
+      box.append(h('div', { class: 'fieldset', style: isSel ? 'border-color:var(--accent)' : '' },
+        h('div', { class: 'fs-t' }, h('b', {}, c.name || '未命名路线'),
+          h('span', {}, [c.recommended ? '★ AI 推荐' : '', isSel ? '已选定' : ''].filter(Boolean).join(' · '))),
+        ...rows,
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn sm ' + (isSel ? '' : 'primary'), disabled: isSel, onclick: () => saveRoutes(list, c, 'user') }, isSel ? '已选定' : '选定此路线'),
+          h('button', { class: 'btn sm ghost', onclick: () => saveRoutes(list, c, 'delegate') }, '记为用户授权 AI 选定'))));
+    }
+    const rec = list.find((x) => x.recommended) || list[0];
+    box.append(h('div', { class: 'btn-row' },
+      h('button', { class: 'btn sm', onclick: () => saveRoutes(list, rec, 'delegate') }, '⭐ 采用 AI 推荐路线'),
+      h('button', { class: 'btn sm ghost', onclick: () => openGen(p, { action: 'route_plan', title: '重新生成故事路线候选', args: { count: 3 }, kind: 'json', onApplied: afterAi }) }, '换一批候选')));
+    return box;
+  }
+
+  async function saveRoutes(candidates, route, mode) {
+    const selected = Object.assign({}, route, { mode, chosenAt: new Date().toISOString() });
+    try {
+      const r = await api.docSet(p.id, 'routes', { candidates, selected, updatedAt: selected.chosenAt });
+      p.routes = r.project.routes;
+      toast(mode === 'delegate' ? `已按 AI 推荐选定「${route.name || '未命名'}」` : `已选定路线「${route.name || '未命名'}」：接下来生成的大纲会严格遵循它`, 'ok', 4200);
+      remount();
+    } catch (e) { toast('保存路线失败：' + e.message, 'err', 5000); }
+  }
 
   function candidatesCard() {
     const list = Array.isArray(p.idea && p.idea.candidates) ? p.idea.candidates : [];

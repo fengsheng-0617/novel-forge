@@ -1,7 +1,7 @@
 'use strict';
 // pipeline.js — 无人值守自动流水线（串行执行 生成→应用 步骤，SSE 推送状态）。
 // 模式：
-//   full  —— 从当前状态补全整条链：点子(必要时先头脑风暴)→立项→设定→人物→大纲→逐章连载
+//   full  —— 从当前状态补全整条链：点子(必要时先头脑风暴)→立项→设定→人物→故事路线→大纲→逐章连载
 //   write —— 仅「大纲→章节正文」无人值守连载（每章自动摘要/连续性记忆按全局设置）
 // 并发：同一时间仅一条流水线；停止=中止当前模型调用；暂停=当步结束后挂起。
 
@@ -67,6 +67,11 @@ function planSteps(project, mode, autoSummary) {
       steps.push({ action: 'characters_generate', args: { count: 10 }, label: '生成人物群像' });
     }
     if (!(project.rows || []).length) {
+      // 生成大纲前先产出「故事路线 + 大纲思路」候选；无人值守时以 AI 推荐路线为纲（大纲会遵循它）
+      const routes = project.routes || {};
+      if (!routes.selected && !(routes.candidates || []).length) {
+        steps.push({ action: 'route_plan', args: { count: 3 }, label: '生成故事路线候选（大纲将遵循推荐路线）' });
+      }
       steps.push({ action: 'outline_generate', args: {}, label: '生成全书大纲' });
     }
   }

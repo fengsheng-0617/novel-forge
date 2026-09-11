@@ -38,9 +38,26 @@ export function mount(root, project, ctx) {
       countN,
       h('button', { class: 'btn', onclick: () => addRowAtEnd() }, t('outline.addManual')),
       h('button', { class: 'btn ghost', onclick: () => { location.hash = '#/p/' + p.id + '/writing'; } }, t('outline.next'))),
+    routeBanner(),
     h('div', { class: 'small faint', style: 'margin-bottom:14px' },
       t('outline.summary', { v: volCount, c: rows.length, w: writtenN, tw: numFmt(p.idea && p.idea.targetWords || 0) })),
     rowsByVol());
+
+  /** 故事路线提示条：未选定路线时提醒先做引导（大纲会遵循选定路线，避免散乱）。 */
+  function routeBanner() {
+    const sel = (p.routes && p.routes.selected) || null;
+    const goIdea = () => { location.hash = '#/p/' + p.id + '/idea'; };
+    if (sel) {
+      const ap = String(sel.approach || '');
+      return h('div', { class: 'card small', style: 'padding:10px 12px;margin-bottom:12px' },
+        h('b', {}, t('outline.routeOk', { name: sel.name || '—' })),
+        ap ? h('span', { class: 'small muted' }, '：' + (ap.length > 140 ? ap.slice(0, 140) + '…' : ap)) : null,
+        h('button', { class: 'btn sm ghost', style: 'margin-left:8px', onclick: goIdea }, t('outline.routeChange')));
+    }
+    return h('div', { class: 'card small', style: 'padding:10px 12px;margin-bottom:12px;border-color:#8a6a3a' },
+      h('b', {}, t('outline.routeMissing')),
+      h('button', { class: 'btn sm primary', style: 'margin-left:8px', onclick: goIdea }, t('outline.routeGo')));
+  }
 
   function header() {
     return h('div', { class: 'page-title' },

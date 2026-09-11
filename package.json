@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "novel-forge",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": false,
   "description": "织文 NovelForge —— 全能 AI 创作工具：小说创作 + 内容仿写/续写/改写 + 安理会决议仿写 + 学术套磁邮件（多能力框架），支持多语言写作；内置离线模拟引擎与示例项目。",
   "main": "server/index.js",

@@ -14,6 +14,21 @@ function stats(p) {
   return { chapters: rows.length, totalPlanned: (p.rows || []).length, words };
 }
 
+/** 故事路线（大纲思路）：底稿里保留"大纲是照哪条路线写的"这一环。 */
+function routeLines(r) {
+  if (!r) return [];
+  return [
+    ['路线名', r.name],
+    ['大纲思路', r.approach],
+    ['主线冲突', r.coreConflict],
+    ['结局走向', r.ending],
+    ['基调/视角', r.tone],
+    ['贯穿伏笔', (r.hooks || []).join('；')],
+    ['取舍与风险', r.risk],
+    ['用户补充', r.custom],
+  ].filter((x) => x[1]);
+}
+
 function volumeTitle(p, vol) {
   const v = (p.volumes || []).find((x) => x.vol === vol);
   return v && v.title ? v.title : `第${vol}卷`;
@@ -77,6 +92,30 @@ function manuscriptMarkdown(p) {
     L.push('### 备用点子池');
     for (const c of idea.candidates) {
       L.push(`- 《${c.title || '?'}》【${c.genre || ''}】${c.logline ? ' — ' + c.logline : ''}${c.concept ? '\n  ' + c.concept : ''}`);
+    }
+  }
+  const routes = p.routes || {};
+  if (routes.selected || (routes.candidates && routes.candidates.length)) {
+    L.push('');
+    L.push('### 故事路线与大纲思路');
+    L.push('');
+    if (routes.selected) {
+      const modeLabel = routes.selected.mode === 'custom' ? '用户自定义' : routes.selected.mode === 'delegate' ? '用户授权 AI 选定' : '用户选定';
+      L.push(`**已选定路线（${modeLabel}）**`);
+      for (const [label, v] of routeLines(routes.selected)) L.push(`- **${label}**：${v}`);
+      const st = routes.selected.structure || [];
+      if (st.length) {
+        L.push('- **阶段路线**：');
+        for (const s of st) L.push(`  ${st.indexOf(s) + 1}. ${s.phase || '阶段'}${s.span ? '（' + s.span + '）' : ''}：${s.goal || ''}${s.turn ? ' → ' + s.turn : ''}`);
+      }
+    } else {
+      L.push('（尚未选定路线；大纲将以 AI 推荐路线为纲，可在生成前改选）');
+    }
+    const others = (routes.candidates || []).filter((c) => !routes.selected || c.name !== routes.selected.name);
+    if (others.length) {
+      L.push('');
+      L.push('**候选路线**');
+      for (const c of others) L.push(`- ${c.name || '未命名'}${c.recommended ? '〔AI 推荐〕' : ''}：${(c.approach || '').slice(0, 180)}`);
     }
   }
   L.push('');

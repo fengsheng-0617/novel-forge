@@ -90,7 +90,7 @@ function takeResult(projectId, resultId) {
 // ============================================================ 动作定义
 
 const CAPS = {
-  ideaText: 2400, styleText: 2600, bibleText: 15000, charsText: 10000, outlineText: 26000,
+  ideaText: 2400, styleText: 2600, bibleText: 15000, charsText: 10000, outlineText: 26000, routeText: 4200,
   tailRowsText: 10000, curRowText: 2800, castText: 4000, prevText: 3200, contText: 5600,
   existingContent: 12000, existingTail: 3600, auditScope: 34000, rowNow: 2800, charNow: 2600,
   charsTextName: 1400, openThreadText: 3000, chapterContent: 20000,
@@ -184,6 +184,70 @@ const ACTIONS = {
     apply(p, v, meta) {
       p.idea = Object.assign({}, p.idea, v, { candidates: p.idea.candidates || [] });
       return `立项书已更新：《${v.title || '未命名'}》`;
+    },
+  },
+
+  // ---------------- 故事路线（大纲思路：立项与大纲之间的强制性引导环节） ----------------
+  route_plan: {
+    label: '路线 · 故事路线与大纲思路', stage: 'idea', kind: KIND.json, tpl: 't_route_plan',
+    about: '给出 2~5 条互不相同的「故事路线 + 大纲思路」候选（整体结构/阶段路线/主线冲突/结局/风险）；候选需人工选定，选定后生成的大纲会严格遵循该路线',
+    order: ['ideaText', 'extraNote'],
+    vars(ctx) {
+      return { routeCount: String(clampNum(ctx.args.count, 2, 5, 3)) };
+    },
+    mock(ctx) {
+      const i = ctx.p.idea || {};
+      const titles = i.title ? `《${i.title}》` : '（模拟项目）';
+      const n = clampNum(ctx.args.count, 2, 5, 3);
+      const seeds = [
+        { name: '主线直推·层层加压', approach: `（模拟路线 1）${titles}以单线主力推进：前三章立起核心悬念与代价，中段每 8~10 章抬升一次筹码，末段用"虚假胜利→重大代价"完成反转，收束于主角主动选择。`, tone: '第三人称限知·冷冽写实' },
+        { name: '双线对撞·真相反噬', approach: `（模拟路线 2）${titles}采用双线交替：明线追查、暗线倒叙施压；两条线在每卷末交汇一次，逐步揭示主角自身即真相的一部分。`, tone: '双视角交替·压迫感' },
+        { name: '群像切面·时代回响', approach: `（模拟路线 3）${titles}以群像切面展开：每卷换一位主视角，用不同立场反复照见同一事件，最终在末卷合流，落点在群像共同承担。`, tone: '多视角群像·厚重' },
+      ];
+      return {
+        shape: 'json',
+        jsonExample: Array.from({ length: n }, (_, k) => Object.assign({
+          structure: [
+            { phase: '第一幕·立局', span: '第1~8章', goal: '（模拟）建立日常与第一个异常，让读者看到代价。', turn: '（模拟）第一次失控：主角被迫入局。' },
+            { phase: '第二幕·加压', span: '第9~24章', goal: '（模拟）线索推进与关系深化，敌人获得优势。', turn: '（模拟）虚假胜利：看似解决，实则打开更大的口子。' },
+            { phase: '第三幕·代价', span: '第25~34章', goal: '（模拟）重大代价与真相逼近。', turn: '（模拟）主角必须放弃最初想要的东西。' },
+            { phase: '第四幕·收束', span: '第35~40章', goal: '（模拟）终局对决与回环。', turn: '（模拟）结局落点。' },
+          ],
+          coreConflict: '（模拟）外部：追查与阻止；内部：是否愿意为真相付出代价。冲突每卷抬升一级筹码。',
+          ending: '（模拟）主角以自身代价换回秩序，留下一个温柔的回环物件。',
+          hooks: ['（模拟）日历上的名字', '（模拟）灯塔的锚点作用'],
+          risk: '（模拟）节奏偏紧、配角戏份被压缩；适合偏好悬疑推进的读者。',
+          recommended: k === 0,
+        }, seeds[k % seeds.length])),
+      };
+    },
+    normalize(payload) {
+      const list = Array.isArray(payload) ? payload
+        : (payload && Array.isArray(payload.routes) ? payload.routes : (payload && Array.isArray(payload.candidates) ? payload.candidates : []));
+      const out = list.slice(0, 6).map((r) => ({
+        name: String((r && (r.name || r.title)) || '未命名路线').slice(0, 60),
+        approach: String((r && (r.approach || r.idea || r.summary)) || '').slice(0, 2400),
+        structure: (Array.isArray(r && r.structure) ? r.structure : []).slice(0, 8).map((s) => ({
+          phase: String((s && (s.phase || s.title || s.name)) || '').slice(0, 60),
+          span: String((s && s.span) || '').slice(0, 60),
+          goal: String((s && s.goal) || '').slice(0, 600),
+          turn: String((s && (s.turn || s.hook)) || '').slice(0, 600),
+        })).filter((s) => s.phase || s.goal),
+        coreConflict: String((r && r.coreConflict) || '').slice(0, 1200),
+        ending: String((r && r.ending) || '').slice(0, 900),
+        tone: String((r && r.tone) || '').slice(0, 400),
+        hooks: (Array.isArray(r && r.hooks) ? r.hooks : []).slice(0, 8).map((h) => String(h).slice(0, 300)).filter(Boolean),
+        risk: String((r && r.risk) || '').slice(0, 900),
+        recommended: !!(r && r.recommended),
+      })).filter((r) => r.name || r.approach);
+      if (!out.length) { const e = new Error('模型未返回任何故事路线候选，未做任何修改'); e.status = 422; throw e; }
+      if (!out.some((r) => r.recommended)) out[0].recommended = true;
+      return out;
+    },
+    apply(p, v, meta) {
+      const had = p.routes && p.routes.selected ? `（原选定路线「${p.routes.selected.name || '?'}」已作废，需重新选定）` : '';
+      p.routes = { candidates: v, selected: null, updatedAt: util.nowISO() };
+      return `已生成 ${v.length} 条故事路线候选${had}——需人工选定后才会用于生成大纲`;
     },
   },
 
@@ -378,8 +442,8 @@ const ACTIONS = {
   // ---------------- 大纲 ----------------
   outline_generate: {
     label: '大纲 · 全书卷章', stage: 'outline', kind: KIND.json, tpl: 't_outline_generate',
-    about: '生成全书分卷大纲（整体替换；若已写正文会要求确认）',
-    order: ['ideaText', 'bibleText', 'charsText', 'styleText', 'extraNote'],
+    about: '生成全书分卷大纲（整体替换；若已写正文会要求确认）。已选定故事路线时大纲会严格遵循该路线',
+    order: ['ideaText', 'routeText', 'bibleText', 'charsText', 'styleText', 'extraNote'],
     vars(ctx) {
       const totalWords = clampNum(ctx.p.idea.targetWords, 10000, 10000000, 100000);
       const cw = clampNum(ctx.args.chapterWords, 800, 20000, ctx.settings.defaults.chapterWords || 3200);
@@ -424,8 +488,8 @@ const ACTIONS = {
 
   outline_extend: {
     label: '大纲 · 追加章节', stage: 'outline', kind: KIND.json, tpl: 't_outline_extend',
-    about: '在大纲末尾续写 N 章（自动规划新卷，保留全部已有内容）',
-    order: ['ideaText', 'bibleText', 'charsText', 'tailRowsText', 'extraNote'],
+    about: '在大纲末尾续写 N 章（自动规划新卷，保留全部已有内容）；续写同样遵循已选定故事路线',
+    order: ['ideaText', 'routeText', 'bibleText', 'charsText', 'tailRowsText', 'extraNote'],
     vars(ctx) {
       return {
         count: String(clampNum(ctx.args.count, 1, 40, 5)),
@@ -1060,6 +1124,8 @@ function pickVarsFor(project, def, args, exec) {
     case 'idea_brainstorm':
     case 'idea_flesh':
       return { genreHint: '', ideaNow: '' };
+    case 'route_plan':
+      return ctxMod.buildVars(project, { idea: true, bible: false, style: false, chars: false, cont: false });
     case 'bible_generate':
       return ctxMod.buildVars(project, { idea: true, style: true, chars: true });
     case 'bible_expand':
@@ -1074,9 +1140,9 @@ function pickVarsFor(project, def, args, exec) {
     case 'characters_align':
       return ctxMod.buildVars(project, { idea: true, bible: true, chars: true });
     case 'outline_generate':
-      return ctxMod.buildVars(project, { idea: true, bible: true, chars: true, style: true });
+      return ctxMod.buildVars(project, { idea: true, route: true, bible: true, chars: true, style: true });
     case 'outline_extend':
-      return ctxMod.buildVars(project, { idea: true, bible: true, chars: true });
+      return ctxMod.buildVars(project, { idea: true, route: true, bible: true, chars: true });
     case 'outline_refine':
       return Object.assign(ctxMod.buildVars(project, { idea: true, chars: true, rowsAll: true }),
         { rowNow: exec.row ? ctxMod.fmtRow(exec.row) : '' });

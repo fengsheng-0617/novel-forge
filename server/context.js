@@ -23,6 +23,45 @@ function fmtIdea(p) {
   return parts.join('\n');
 }
 
+/**
+ * 故事路线（大纲思路）文本：优先「用户已选定」的路线，其次「AI 推荐」候选，都没有时给出催办提示。
+ * 该块会被注入大纲类模板（{{routeText}}），用来约束大纲不跑偏。
+ */
+function fmtRoute(p) {
+  const r = (p && p.routes) || {};
+  const list = Array.isArray(r.candidates) ? r.candidates : [];
+  const sel = r.selected || null;
+  if (sel) {
+    const tag = sel.mode === 'custom' ? '用户自定义并确认' : sel.mode === 'delegate' ? '用户授权 AI 选定' : '用户选定';
+    return `（${tag}）\n` + fmtRouteOne(sel);
+  }
+  if (list.length) {
+    const pick = list.find((x) => x.recommended) || list[0];
+    return '（注意：用户尚未确认路线，以下为 AI 推荐路线；若用户随后另作选择，以用户选择为准）\n' + fmtRouteOne(pick);
+  }
+  return '（尚未给出故事路线与大纲思路：请先产出 2~3 条互不相同的路线候选并请用户选定，再生成大纲，否则大纲容易散乱、前后失焦。）';
+}
+
+/** 单条路线的文本化（供模板注入与导出复用）。 */
+function fmtRouteOne(r) {
+  const o = r || {};
+  const out = [];
+  if (o.name) out.push(`路线名：${o.name}${o.recommended ? '〔AI 推荐〕' : ''}`);
+  if (o.approach) out.push('大纲思路：' + o.approach);
+  const st = (o.structure || []).map((s, i) => {
+    const head = `  ${i + 1}. ${s.phase || '阶段'}${s.span ? '（' + s.span + '）' : ''}：${s.goal || ''}`;
+    return head + (s.turn ? ` → 阶段末转折：${s.turn}` : '');
+  });
+  if (st.length) out.push('阶段路线：\n' + st.join('\n'));
+  if (o.coreConflict) out.push('主线冲突：' + o.coreConflict);
+  if (o.ending) out.push('结局走向：' + o.ending);
+  if (o.tone) out.push('基调 / 视角：' + o.tone);
+  if (o.hooks && o.hooks.length) out.push('贯穿伏笔：' + o.hooks.join('；'));
+  if (o.risk) out.push('取舍与风险：' + o.risk);
+  if (o.custom) out.push('用户补充：' + o.custom);
+  return out.join('\n') || '（空路线）';
+}
+
 function fmtStyle(p) {
   const s = p.styleGuide || {};
   const parts = [];
@@ -208,6 +247,7 @@ function buildVars(project, picks = {}) {
   const v = {};
 
   if (picks.idea !== false) v.ideaText = fmtIdea(p);
+  if (picks.route) v.routeText = fmtRoute(p);
   if (picks.bible !== false) v.bibleText = fmtBible(p);
   if (picks.style !== false) v.styleText = fmtStyle(p) || '（未定义风格，默认：中文叙事、段落间空行。）';
   if (picks.chars !== false) v.charsText = fmtChars(p.characters);
@@ -335,4 +375,4 @@ function renderTemplate(tpl, vars) {
   return { system: s, user: u };
 }
 
-module.exports = { buildVars, trimVars, renderTemplate, fmtIdea, fmtStyle, fmtBible, fmtChars, fmtRow, fmtRows, fmtContinuity, prevTextFor, openThreads, bibleKeyText, fmtWorkspaceVars, langInstruction };
+module.exports = { buildVars, trimVars, renderTemplate, fmtIdea, fmtRoute, fmtRouteOne, fmtStyle, fmtBible, fmtChars, fmtRow, fmtRows, fmtContinuity, prevTextFor, openThreads, bibleKeyText, fmtWorkspaceVars, langInstruction };

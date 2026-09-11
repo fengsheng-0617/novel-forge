@@ -7,6 +7,40 @@ This changelog records notable changes to NovelForge, following [Keep a Changelo
 
 > History note: versions before v0.3.0 are the early shaped releases (idea→setting→characters→outline→prose full pipeline + multi-provider gateway + unattended pipeline); recording starts at v0.3.0.
 
+## [0.4.1] - 2026-09-11
+
+### Added
+- **Story-route (outline-approach) stage**: a mandatory guidance step between "premise" and "outline" that keeps the
+  outline from drifting.
+  - New template `t_route_plan` ("route · story route and outline approach"): produces 2–5 genuinely divergent route
+    options, each with an outline approach (structure / pacing / POV), a stage-by-stage route (3–5 stages with chapter
+    spans and act turns), an escalating core-conflict path, an ending direction, running foreshadowing, trade-offs and
+    risks, plus an AI-recommended pick.
+  - New action `route_plan` (stage=idea); projects gained a `routes` document (`{candidates, selected}`), readable and
+    writable through `/api/projects/:id/doc` with `pointer=routes`.
+  - **`{{routeText}}` variable**: `t_outline_generate` and `t_outline_extend` now declare it and state that the outline
+    must follow the story route. Selected → the user's route is injected; candidates only → the AI-recommended route is
+    injected and flagged as unconfirmed; neither → a prompt to run the guidance step.
+- **Unattended pipeline**: `full` mode inserts a `route_plan` step before the outline and outlines against the
+  AI-recommended route.
+- **Exports & listings**: the `manuscript` draft gained a "story route and outline approach" section (full selected route
+  plus the remaining candidates); the project list reports `route` status; project status gained "route locked in".
+- **Web UI**: the idea page gained a "① story route · outline approach" action plus a route-candidate card (select /
+  adopt the AI recommendation / regenerate); the outline page gained a route banner (warns when nothing is selected).
+
+### Changed
+- Templates 24 → 25; engine actions 18 → 19 (`route_plan`).
+- `context.js` gained `fmtRoute / fmtRouteOne` and a `route` option in `buildVars`; `store.js` whitelists `routes` as a
+  document pointer.
+- Version 0.4.0 → 0.4.1.
+
+### Verify
+- New module-level suite `scripts/test-route.js` (17/17): template/action registration, candidate normalization and
+  apply semantics, the three `routeText` injection states, and rendered prompts free of leftover placeholders.
+- Full self-test green: engine 43/43 (6 route cases included) · API 26/26 · pipeline 21/21 · acceptance 20/20 ·
+  render 9/9 · interaction 11/11 · syntax 46/46 · imports 15/15.
+- Engine mirror `engine-mirror verify`: source/plugin 32 vs 32, zero drift.
+
 ## [0.4.0] - 2026-09-07
 
 ### Added
@@ -45,5 +79,6 @@ This changelog records notable changes to NovelForge, following [Keep a Changelo
 ### Fixed
 - — (no prior defects recorded in this first trackable release)
 
+[0.4.1]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.4.1
 [0.4.0]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.4.0
 [0.3.0]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.3.0

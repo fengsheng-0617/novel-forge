@@ -7,6 +7,29 @@
 
 > 版本历史追溯：v0.3.0 之前为首次成形的早期版本（点子→设定→人物→大纲→正文全流程 + 多厂商网关 + 无人值守流水线），此处从可追溯的 v0.3.0 版本开始记录。
 
+## [0.4.1] - 2026-09-11
+
+### Added
+- **故事路线（大纲思路）环节**：在「立项」与「大纲」之间新增强制引导步骤，防止大纲散乱。
+  - 新模板 `t_route_plan`（路线 · 故事路线与大纲思路）：产出 2~5 条互不相同的路线候选，每条含
+    大纲思路（整体结构/节奏/视角）、阶段路线（3~5 阶段，含章节区间与阶段末转折）、主线冲突升级路径、结局走向、贯穿伏笔、取舍与风险，并标出 AI 推荐项。
+  - 新动作 `route_plan`（stage=idea）；项目新增 `routes` 文档（`{candidates, selected}`），可在 `/api/projects/:id/doc` 以 `pointer=routes` 读写。
+  - **`{{routeText}}` 变量**：`t_outline_generate` 与 `t_outline_extend` 新增该变量并声明"必须遵循故事路线"；
+    已选定 → 注入用户选定的路线；仅生成候选未选定 → 注入 AI 推荐路线并标注"用户尚未确认"；两者都没有 → 注入催办提示。
+- **无人值守流水线**：`full` 模式在生成大纲前自动补一步 `route_plan`，大纲以 AI 推荐路线为纲。
+- **导出与列表**：`manuscript` 底稿新增「故事路线与大纲思路」区块（选定路线全文 + 其余候选）；项目列表返回 `route` 状态；项目状态新增「路线已定」。
+- **网页端**：点子页新增「① 故事路线 · 大纲思路」动作与路线候选卡片（选定 / 采用 AI 推荐 / 换一批候选）；大纲页顶部新增路线提示条（未选定则提醒先去引导）。
+
+### Changed
+- 模板总数 24 → 25；引擎动作总数 18 → 19（`route_plan`）。
+- `context.js` 新增 `fmtRoute / fmtRouteOne`，`buildVars` 支持 `route` 选项；`store.js` 的文档指针白名单加入 `routes`。
+- 版本 0.4.0 → 0.4.1。
+
+### Verify
+- 新增模块级测试 `scripts/test-route.js`（17/17）：模板/动作注册、候选归一化与入库语义、`routeText` 三种注入状态、渲染无残留占位符。
+- 全量自测全绿：引擎 43/43（含路线环节 6 项）· API 26/26 · 流水线 21/21 · 验收 20/20 · 渲染 9/9 · 交互 11/11 · 语法 46/46 · 导入 15/15。
+- 引擎镜像 `engine-mirror verify`：源/插件 32 vs 32 零漂移。
+
 ## [0.4.0] - 2026-09-07
 
 ### Added
@@ -45,5 +68,6 @@
 ### Fixed
 - （首版无既有缺陷记录；此版本为可追溯起始点。）
 
+[0.4.1]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.4.1
 [0.4.0]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.4.0
 [0.3.0]: https://github.com/fengsheng-0617/novel-forge/releases/tag/v0.3.0

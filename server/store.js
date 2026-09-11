@@ -62,6 +62,9 @@ function listProjects() {
       id: p.id, name: p.name || '未命名', desc: p.desc || '', demo: !!p.demo,
       createdAt: p.createdAt, updatedAt: p.updatedAt || '',
       status: projectStatus(p),
+      route: (p.routes && p.routes.selected)
+        ? { selected: p.routes.selected.name || '未命名路线', mode: p.routes.selected.mode || 'user' }
+        : { selected: '', candidates: (p.routes && p.routes.candidates ? p.routes.candidates.length : 0) },
       counts: {
         chapters: p.rows ? p.rows.length : 0,
         written: p.rows ? p.rows.filter((r) => r.ch && r.ch.content).length : 0,
@@ -79,6 +82,7 @@ function projectStatus(p) {
   if (r.some((x) => x.ch && x.ch.content)) return '写作中';
   if (r.length) return '已建大纲';
   if (p.characters && p.characters.length) return '人物设定中';
+  if (p.routes && p.routes.selected) return '路线已定';
   if ((p.bible && p.bible.sections && p.bible.sections.length) || (p.idea && p.idea.premise)) return '设定中';
   return '灵感阶段';
 }
@@ -112,6 +116,8 @@ function newProject({ name, desc, demo, cap } = {}) {
       candidates: [],             // AI 头脑风暴备选池
     },
     bible: { summary: '', rules: [], sections: [], glossary: [] },
+    // 故事路线（大纲思路）：候选 + 用户选定；选定后大纲生成会严格遵循该路线
+    routes: { candidates: [], selected: null, updatedAt: '' },
     styleGuide: { pov: '', voice: '', prose: '', dialogue: '', taboo: [], must: [], formatting: '', extra: '' },
     characters: [],
     rows: [],                     // 统一「大纲行 = 章节行」，含写作状态 ch
@@ -208,7 +214,7 @@ function transact(p, label, fn) {
 
 // ---------------- ops ----------------
 
-const DOC_POINTERS = new Set(['idea', 'bible', 'styleGuide', 'continuity', 'audits', 'volumes', 'workspace', 'language']);
+const DOC_POINTERS = new Set(['idea', 'routes', 'bible', 'styleGuide', 'continuity', 'audits', 'volumes', 'workspace', 'language']);
 
 function docSet(p, pointer, value, tab) {
   if (!DOC_POINTERS.has(pointer)) { const e = new Error('不允许直接修改该字段'); e.status = 400; throw e; }

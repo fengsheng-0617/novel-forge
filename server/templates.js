@@ -85,6 +85,37 @@ const RAW = [
 }`,
   },
 
+  {
+    key: 't_route_plan', stage: 'idea', label: '路线 · 故事路线与大纲思路',
+    about: '为当前点子给出 3 条互不相同的「故事路线 + 大纲思路」候选（结构/主线冲突/结局/风险），人工选定后才用于生成大纲。',
+    vars: ['ideaText', 'routeCount', 'extraNote'],
+    system: `你是长篇小说总编剧，负责在"立项"与"写大纲"之间补上最关键的一步：把点子拆成几条真正分岔的故事路线，并给出各自的大纲思路。你的候选必须做到：① 路线之间在结构骨架、冲突升级方式或结局走向上真正分岔，禁止换皮同一条；② 每条路线都要说清"这条路线牺牲了什么、适合什么读者"；③ 阶段划分要能直接落地成卷与章节序列；④ 不许含糊（禁止"主角历经磨难最终成长"之类空话），每条都要有可写、可检验的具体安排。`,
+    user: `请为下列小说点子给出 {{routeCount}} 条**互不相同**的「故事路线 + 大纲思路」候选，供用户挑选后再生成全书大纲。
+
+【创意立项书】{{ideaText}}
+
+【额外要求】{{extraNote}}
+
+输出一个 JSON 数组，包含 {{routeCount}} 个对象，每个对象字段：
+{
+  "name": "路线名（14字内，点明结构与卖点，如 双线追凶·真相反噬）",
+  "approach": "大纲思路（180~280字）：整体结构策略（几幕/几卷、主线与副线如何咬合）、节奏与信息释放安排、视角策略",
+  "structure": [{"phase": "阶段或卷名", "span": "覆盖区间（如 第1~8章）", "goal": "该阶段要完成什么", "turn": "阶段末转折或钩子"}],
+  "coreConflict": "主线冲突与其升级路径（80~150字）：冲突如何一次比一次代价更高",
+  "ending": "结局走向与情绪落点（60~120字）",
+  "tone": "基调与视角方案（40字内）",
+  "hooks": ["贯穿全书的伏笔或悬念引擎，2~4 条"],
+  "risk": "取舍与风险（60~120字）：这条路线放弃了什么、适合什么读者、写作难点在哪",
+  "recommended": true 或 false
+}
+
+硬性要求：
+① 每条路线必须给出 3~5 个阶段，"span" 用章节区间表示，便于直接生成分卷大纲；
+② 路线之间必须至少在两处形成明确分岔（例如：主线冲突的升级逻辑不同、结局性质不同、主视角人物不同）；
+③ 恰好一条路线 "recommended" 为 true，并在其 "risk" 结尾用一句话说明推荐理由；
+④ 不要输出 JSON 以外的任何文字。`,
+  },
+
   // ============ 设定阶段 ============
   {
     key: 't_bible_generate', stage: 'bible', label: '世界观 · 设定集生成',
@@ -234,11 +265,13 @@ pov 为 true 的角色全组不超过 3 人。`,
   {
     key: 't_outline_generate', stage: 'outline', label: '全书大纲 · 卷章生成',
     about: '生成全本分卷大纲：卷弧线 + 每章 目标/节拍/登场人物/视角/字数。',
-    vars: ['ideaText', 'bibleText', 'charsText', 'styleText', 'extraNote', 'totalWords', 'chapterCount', 'chapterWords'],
-    system: `你是资深剧情架构师，擅长把长篇小说做成"节拍器"：全书分卷，每卷有独立弧线与终局小高潮；卷内每章目标明确（推进一条线索/解决局部冲突/深化一段关系）；章末留悬念接口。你负责：把立项书中的核心冲突拆解成可持续写到 {{totalWords}} 字的引擎（冲突逐步升级、阶段性揭秘、筹码不断变化）；文戏武戏、大场景小场景交替；为每位主要角色安排弧线关键节点；善用世界观铁律制造必然转折。`,
+    vars: ['ideaText', 'routeText', 'bibleText', 'charsText', 'styleText', 'extraNote', 'totalWords', 'chapterCount', 'chapterWords'],
+    system: `你是资深剧情架构师，擅长把长篇小说做成"节拍器"：全书分卷，每卷有独立弧线与终局小高潮；卷内每章目标明确（推进一条线索/解决局部冲突/深化一段关系）；章末留悬念接口。你负责：把立项书中的核心冲突拆解成可持续写到 {{totalWords}} 字的引擎（冲突逐步升级、阶段性揭秘、筹码不断变化）；文戏武戏、大场景小场景交替；为每位主要角色安排弧线关键节点；善用世界观铁律制造必然转折。另外你必须**落实给定的故事路线**：卷/阶段划分要与路线给出的阶段结构对齐，主线冲突沿其升级路径推进，结局走向与之一致；若某处确有必要偏离，须在该卷 arc 中写明理由。`,
     user: `请为下列小说生成完整分卷大纲。
 
 【创意立项书】{{ideaText}}
+
+【故事路线（必须遵循）】{{routeText}}
 
 【世界观】{{bibleText}}
 
@@ -272,11 +305,13 @@ pov 为 true 的角色全组不超过 3 人。`,
   {
     key: 't_outline_extend', stage: 'outline', label: '大纲 · 续写后续章节',
     about: '在当前大纲末端追加 N 章（自动规划新卷，若需要）。',
-    vars: ['ideaText', 'bibleText', 'charsText', 'tailRowsText', 'extraNote', 'count', 'chapterWords'],
-    system: `你是资深剧情架构师。续写大纲要严格承接上文：已出现的冲突不得凭空消失；已布置的伏笔按节奏回收或升级；进入新卷时要引入新动力源（新威胁/新目标/新舞台），避免重复旧模式。`,
+    vars: ['ideaText', 'routeText', 'bibleText', 'charsText', 'tailRowsText', 'extraNote', 'count', 'chapterWords'],
+    system: `你是资深剧情架构师。续写大纲要严格承接上文：已出现的冲突不得凭空消失；已布置的伏笔按节奏回收或升级；进入新卷时要引入新动力源（新威胁/新目标/新舞台），避免重复旧模式。同时必须延续【故事路线】既定的阶段结构与结局走向，不得中途改换路线。`,
     user: `为下列小说的大纲追加后续章节。
 
 【创意立项书】{{ideaText}}
+
+【故事路线（必须遵循）】{{routeText}}
 
 【世界观】{{bibleText}}
 
@@ -600,7 +635,7 @@ vol/no 从接续处顺延编号。`,
 ];
 
 const TYPE_MAP = {
-  t_idea_brainstorm: 'json', t_idea_flesh: 'json', t_bible_generate: 'json', t_bible_expand: 'json',
+  t_idea_brainstorm: 'json', t_idea_flesh: 'json', t_route_plan: 'json', t_bible_generate: 'json', t_bible_expand: 'json',
   t_characters_generate: 'json', t_character_add: 'json', t_character_flesh: 'json', t_characters_align: 'json',
   t_outline_generate: 'json', t_outline_extend: 'json', t_outline_refine: 'json',
   t_chapter_write: 'prose', t_chapter_continue: 'prose', t_chapter_rewrite: 'prose', t_chapter_polish: 'prose',

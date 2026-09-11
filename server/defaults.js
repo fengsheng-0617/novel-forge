@@ -1,11 +1,11 @@
-'use strict';
+﻿'use strict';
 // NovelForge — default settings, provider presets & app meta.
 // Models/context sizes are editable estimates; users can adjust or fetch live lists.
 
 const APP = {
   name: '织文 NovelForge',
   nameEn: 'NovelForge',
-  version: '0.4.0',
+  version: '0.4.1',
   tagline: '从灵感火花到成书连载 —— 每一步都由你把关的 AI 小说工坊',
 };
 
